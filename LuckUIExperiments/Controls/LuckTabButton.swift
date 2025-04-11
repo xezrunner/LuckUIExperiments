@@ -35,6 +35,8 @@ struct LuckTabButtonExpandedLabel: LabelStyle {
 }
 
 struct LuckTabButton<Label: View>: View {
+    @Environment(\.colorScheme) var colorScheme
+    
     let id = UUID()
     let animNS: Namespace.ID
     
@@ -55,8 +57,13 @@ struct LuckTabButton<Label: View>: View {
         .padding(!isCompact ? 8 : 0)
         .background {
             Capsule(style: .continuous)
-                .fill(BackgroundStyle.background)
+                .fill(
+                    colorScheme == .light ?
+                        AnyShapeStyle(BackgroundStyle.background) : isCompact ?
+                        AnyShapeStyle(BackgroundStyle.background) : AnyShapeStyle(BackgroundStyle.background.quaternary)
+                )
                 .opacity(isSelected ? 1 : 0)
+                .animation(isSelected ? .none : .linear(duration: 0.3), value: isSelected)
                 .matchedGeometryEffect(id: !isSelected ? "TabButton::\(id.uuidString)" : "ActiveTabButton", in: animNS)
                 .frame(width: isCompact ? nil : 90)
                 .compositingGroup()

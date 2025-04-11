@@ -28,6 +28,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     
     // MARK: -
     @Namespace var animNS
+    @Environment(\.colorScheme) var colorScheme
     
     let idleHeight    : CGFloat = 50
     let expandedHeight: CGFloat = 70
@@ -37,16 +38,21 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     @State var searchText: String = ""
     @FocusState var searchFocusState: Bool
     
-    #if false
-    let animation = Animation.smooth(duration: 3)
-    #else
-    let animation = Animation.spring(response: 0.4, dampingFraction: 0.80)
-    #endif
+    @State var isSlowmo = false
+    var animation: Animation { !isSlowmo ? normalAnimation : slowAnimation }
+    
+    var slowAnimation:   Animation { Animation.spring(duration: 2, bounce: 0.2) }
+    var normalAnimation: Animation { Animation.spring(response: 0.4, dampingFraction: 0.80) }
+    
+    @State var tabStripSize: CGSize = .zero
     
     var body: some View {
         Group {
             allTabs.first(where: { $0 == selection })?.view()
                 .environment(\.luckSearchText, searchText)
+        }
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: tabStripSize.height)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay {
@@ -60,6 +66,9 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
                     .padding(.top, 32) // More blur towards the top
                     .compositingGroup()
                     .shadow(color: .black.opacity(0.08), radius: 4)
+                    .onGeometryChange(for: CGSize.self, of: { $0.size }) { size in
+                        tabStripSize = size
+                    }
                 }
                 .background {
                     ZStack {
@@ -102,6 +111,8 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
                 Capsule().fill(.background)
                     .matchedGeometryEffect(id: "TabBar", in: animNS)
             }
+            .onLongPressGesture(minimumDuration: 1) { isSlowmo.toggle() }
+            .sensoryFeedback(.increase, trigger: isSlowmo)
 #endif
         }
         .padding(.horizontal)
@@ -167,6 +178,6 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
             startPoint: .topTrailing,
             endPoint: .bottom
         )
-        .blendMode(.hardLight)
+        .blendMode(colorScheme == .light ? .hardLight : .overlay)
     }
 }
