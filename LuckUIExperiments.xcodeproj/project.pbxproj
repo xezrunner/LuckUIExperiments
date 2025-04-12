@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		210C1FCB2DAA7864008DB045 /* XZMorphUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 210C1FCA2DAA7864008DB045 /* XZMorphUI.swift */; };
 		212A4DA82DA8B0DF00B38DF3 /* LuckTabButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 212A4DA72DA8B0DF00B38DF3 /* LuckTabButton.swift */; };
 		212A4DAB2DA8B10100B38DF3 /* LuckTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 212A4DAA2DA8B10100B38DF3 /* LuckTabView.swift */; };
 		215F35602DA7388600122F06 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215F355D2DA7388600122F06 /* ContentView.swift */; };
@@ -16,6 +17,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		210C1FCA2DAA7864008DB045 /* XZMorphUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XZMorphUI.swift; sourceTree = "<group>"; };
 		212A4DA72DA8B0DF00B38DF3 /* LuckTabButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LuckTabButton.swift; sourceTree = "<group>"; };
 		212A4DAA2DA8B10100B38DF3 /* LuckTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LuckTabView.swift; sourceTree = "<group>"; };
 		215F354E2DA7385E00122F06 /* LuckUIExperiments.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LuckUIExperiments.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -69,6 +71,7 @@
 				215F355E2DA7388600122F06 /* LuckUIExperimentsApp.swift */,
 				21E37DC92DA88A0F0002997C /* VariableBlur.swift */,
 				215F355C2DA7388600122F06 /* Assets.xcassets */,
+				210C1FCA2DAA7864008DB045 /* XZMorphUI.swift */,
 			);
 			path = LuckUIExperiments;
 			sourceTree = "<group>";
@@ -119,6 +122,8 @@
 			);
 			mainGroup = 215F35452DA7385E00122F06;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 215F354F2DA7385E00122F06 /* Products */;
 			projectDirPath = "";
@@ -145,6 +150,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				210C1FCB2DAA7864008DB045 /* XZMorphUI.swift in Sources */,
 				212A4DA82DA8B0DF00B38DF3 /* LuckTabButton.swift in Sources */,
 				215F35602DA7388600122F06 /* ContentView.swift in Sources */,
 				212A4DAB2DA8B10100B38DF3 /* LuckTabView.swift in Sources */,
