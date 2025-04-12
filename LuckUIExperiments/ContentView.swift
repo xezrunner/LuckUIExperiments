@@ -74,7 +74,7 @@ struct ContentView: View {
         case new     = "New"
         case radio   = "Radio"
         case library = "Library"
-        case search  = "Search"
+//        case search  = "Search"
         
         @ViewBuilder func view() -> some View {
             switch self {
@@ -89,7 +89,7 @@ struct ContentView: View {
             case .new:     "square.grid.2x2.fill"
             case .radio:   "dot.radiowaves.left.and.right"
             case .library: "square.stack.fill"
-            case .search:  "magnifyingglass"
+//            case .search:  "magnifyingglass"
             }
         }
     }

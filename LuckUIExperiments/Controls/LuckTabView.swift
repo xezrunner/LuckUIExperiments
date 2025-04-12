@@ -87,7 +87,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     
     // MARK: - Idle view
     var idle: some View {
-        MorphContainer(blurRadiusMult: 1.4) {
+        MorphContainer(blurRadiusMult: 2.85) {
             HStack(spacing: 14) {
                 LuckTabButton(animNS: animNS, isCompact: true, isSelected: true,
                               action: { withAnimation(animation) { isExpanded.toggle() } }
@@ -102,7 +102,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
                 }
                 .matchedGeometryEffect(id: "TabBar", in: animNS, properties: .frame)
 #else
-                MorphView(blurRadius: 5) {
+                MorphView() {
                     HStack {
                         Image(systemName: "magnifyingglass")
                             .foregroundStyle(.secondary)
@@ -123,7 +123,8 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
             }
             .padding()
         } background: {
-            Color.white
+            if colorScheme == .light { Rectangle().fill(BackgroundStyle.background) }
+            else                     { Rectangle().fill(Material.bar) }
         }
         .frame(height: idleHeight)
     }
@@ -153,12 +154,19 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         .frame(height: expandedHeight)
         
         .background {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.thinMaterial)
-//                    .fill(.white)
-                    .strokeBorder(lightBorder, lineWidth: 1.5)
-                    .matchedGeometryEffect(id: "TabBar", in: animNS)
-                    .onTapGesture { withAnimation(animation) { isExpanded = false } }
+            MorphContainer(blurRadiusMult: 2.85) {
+                MorphView {
+                    Capsule()
+                    //                        .fill(.thinMaterial)
+                        .fill(.clear)
+                    //                        .strokeBorder(lightBorder, lineWidth: 1.5)
+                        .onTapGesture { withAnimation(animation) { isExpanded = false } }
+                }
+                .matchedGeometryEffect(id: "TabBar", in: animNS)
+            } background: {
+                Rectangle()
+                    .fill(Material.thinMaterial)
+            }
         }
     }
     

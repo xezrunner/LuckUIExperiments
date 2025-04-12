@@ -34,8 +34,8 @@ struct MorphContainer<Content: View, Background: View>: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         
 //            .compositingGroup()
-//            .blur(radius: blurRadius)
-//            .drawingGroup()
+//            .blur(radius: 4 * blurRadiusMult)
+            .drawingGroup()
             .overlay {
                 ZStack {
                     Color(white: 0.5)
@@ -69,6 +69,7 @@ struct MorphView<Content: View>: View {
                 Group {
                     if isRequestingMeatball {
                         Color.black
+                            .padding(blurRadius * meatballBlurRadiusMult / 2.2)
                             .blur(radius: blurRadius * meatballBlurRadiusMult)
                     }
                 }
