@@ -18,13 +18,26 @@ struct MorphContainer<Content: View, Background: View>: View {
 //            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background {
                 background.mask(meatball_blending)
+//                background.mask(meatball_layer)
                 .allowsHitTesting(false)
             }
             .clipped()
     }
     
     var meatball_layer: some View {
-        EmptyView()
+        Canvas { context, size in
+            context.addFilter(.alphaThreshold(min: 0.5, color: .white))
+            
+            if let symbol = context.resolveSymbol(id: 0) {
+                context.draw(symbol, at: CGPoint(x: size.width / 2, y: size.height / 2))
+            }
+        } symbols: {
+            content
+                .environment(\.isRequestingMeatball, true)
+                .environment(\.meatballBlurRadiusMult, blurRadiusMult)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .tag(0)
+        }
     }
     
     var meatball_blending: some View {
@@ -69,7 +82,7 @@ struct MorphView<Content: View>: View {
                 Group {
                     if isRequestingMeatball {
                         Color.black
-                            .padding(blurRadius * meatballBlurRadiusMult / 2.2)
+                            .padding(blurRadius * meatballBlurRadiusMult / 2.5)
                             .blur(radius: blurRadius * meatballBlurRadiusMult)
                     }
                 }

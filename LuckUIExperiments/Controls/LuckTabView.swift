@@ -42,7 +42,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     var animation: Animation { !isSlowmo ? normalAnimation : slowAnimation }
     
     var slowAnimation:   Animation { Animation.spring(duration: 3, bounce: 0.2) }
-    var normalAnimation: Animation { Animation.spring(response: 0.25, dampingFraction: 1.2) }
+    var normalAnimation: Animation { Animation.spring(response: 0.4, dampingFraction: 0.83) }
     
     @State var tabStripSize: CGSize = .zero
     
@@ -82,13 +82,19 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
                     .allowsHitTesting(false)
                 }
                 .frame(maxHeight: .infinity, alignment: .bottom)
+//                .background {
+//                    Color.clear
+//                        .contentShape(.rect)
+//                        .allowsHitTesting(isExpanded)
+//                        .onTapGesture { selectTab(tab: selection) }
+//                }
         }
     }
     
     // MARK: - Idle view
     var idle: some View {
-        MorphContainer(blurRadiusMult: 2.85) {
-            HStack(spacing: 14) {
+        MorphContainer(blurRadiusMult: 3.15) {
+            HStack(spacing: 15) {
                 LuckTabButton(animNS: animNS, isCompact: true, isSelected: true,
                               action: { withAnimation(animation) { isExpanded.toggle() } }
                 ) {
