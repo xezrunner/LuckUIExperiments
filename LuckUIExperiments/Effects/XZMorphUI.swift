@@ -24,22 +24,8 @@ struct MorphContainer<Content: View, Background: View>: View {
             .clipped()
     }
     
-    var meatball_layer: some View {
-        Canvas { context, size in
-            context.addFilter(.alphaThreshold(min: 0.5, color: .white))
-            
-            if let symbol = context.resolveSymbol(id: 0) {
-                context.draw(symbol, at: CGPoint(x: size.width / 2, y: size.height / 2))
-            }
-        } symbols: {
-            content
-                .environment(\.isRequestingMeatball, true)
-                .environment(\.meatballBlurRadiusMult, blurRadiusMult)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .tag(0)
-        }
-    }
-    
+    // The most compatible rendering of the metaball effect with SwiftUI Views.
+    // This lacks anti-aliasing and looks crunchy at the edges.
     var meatball_blending: some View {
         content
             .environment(\.isRequestingMeatball, true)
@@ -66,6 +52,28 @@ struct MorphContainer<Content: View, Background: View>: View {
         
 //            .clipped()
     }
+    
+    // Less compatible, but more straightforward and accurate.
+    // More specifically, it is incompatible with .matchedGeometryEffect() and similar (animations/transitions?)
+    // that rely on internal SwiftUI positioning.
+    // These elements have a canonical position of [global 0;0].
+    var meatball_layer: some View {
+        Canvas { context, size in
+            context.addFilter(.alphaThreshold(min: 0.5, color: .white))
+            
+            if let symbol = context.resolveSymbol(id: 0) {
+                context.draw(symbol, at: CGPoint(x: size.width / 2, y: size.height / 2))
+            }
+        } symbols: {
+            content
+                .environment(\.isRequestingMeatball, true)
+                .environment(\.meatballBlurRadiusMult, blurRadiusMult)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .tag(0)
+        }
+    }
+    
+    // TODO: shader version?
 }
 
 struct MorphView<Content: View>: View {
