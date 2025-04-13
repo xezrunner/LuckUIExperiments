@@ -39,12 +39,30 @@ struct ContentView: View {
         case new     = "New"
         case radio   = "Radio"
         case library = "Library"
-//        case search  = "Search"
+        case search  = "Search"
+        
+        var tabScreenshot: ImageResource {
+            switch self {
+            case .home:
+                    .TabScreenshots.home
+            case .new:
+                    .TabScreenshots.new
+            case .radio:
+                    .TabScreenshots.radio
+            case .library:
+                    .TabScreenshots.library
+            case .search:
+                    .TabScreenshots.search
+            }
+        }
         
         @ViewBuilder func view() -> some View {
             switch self {
-            case .library: LibraryTabView()
-            default: Text("< \(rawValue) >")
+            default: ScrollView {
+                Image(tabScreenshot).resizable().aspectRatio(
+                    contentMode: .fill
+                )
+            }.ignoresSafeArea()
             }
         }
         
@@ -54,7 +72,7 @@ struct ContentView: View {
             case .new:     "square.grid.2x2.fill"
             case .radio:   "dot.radiowaves.left.and.right"
             case .library: "square.stack.fill"
-//            case .search:  "magnifyingglass"
+            case .search:  "magnifyingglass"
             }
         }
     }

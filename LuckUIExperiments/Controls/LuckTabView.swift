@@ -41,15 +41,52 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     @State var isSlowmo = false
     var animation: Animation { !isSlowmo ? normalAnimation : slowAnimation }
     
-    var slowAnimation:   Animation { Animation.spring(duration: 3, bounce: 0.2) }
+    var slowAnimation:   Animation { Animation.spring(response: 2, dampingFraction: 0.83) }
     var normalAnimation: Animation { Animation.spring(response: 0.4, dampingFraction: 0.83) }
     
     @State var tabStripSize: CGSize = .zero
+    
+    var customTopInset: some View {
+        HStack(spacing: 16) {
+            Image(.AlbumArtwork.paradiseagain)
+                .resizable().aspectRatio(contentMode: .fit)
+                .frame(width: 28, height: 28)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            
+            VStack(alignment: .leading) {
+                Text("Calling On")
+                // Text("Swedish House Mafia")
+            }
+            .font(.system(size: 15))
+            
+            Spacer()
+            
+            Group {
+                Button(action: {}) {
+                    Label("Play / resume", systemImage: "play.fill").labelStyle(.iconOnly)
+                }
+                Button(action: {}) {
+                    Label("Next track", systemImage: "forward.fill").labelStyle(.iconOnly)
+                }
+            }
+            .tint(.primary)
+        }
+        .padding(12)
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            Capsule().fill(BackgroundStyle.background)
+        }
+        .padding(.horizontal)
+    }
     
     var body: some View {
         Group {
             allTabs.first(where: { $0 == selection })?.view()
                 .environment(\.luckSearchText, searchText)
+            
+                .onLongPressGesture(minimumDuration: 0.5) { isSlowmo.toggle() }
+                .sensoryFeedback(.increase, trigger: isSlowmo)
         }
         .safeAreaInset(edge: .bottom) {
             Color.clear.frame(height: tabStripSize.height)
@@ -58,11 +95,13 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         .overlay {
             Group {}
                 .safeAreaInset(edge: .bottom) {
-                        Group {
-                            if !isExpanded { idle }
-                            else           { expanded }
+                    VStack {
+                        customTopInset
+                        
+                        if !isExpanded { idle }
+                        else           { expanded }
                     }
-                    .padding()
+                    .padding(8)
                     .padding(.top, 32) // More blur towards the top
                     .compositingGroup()
                     .shadow(color: .black.opacity(0.08), radius: 4)
@@ -82,26 +121,28 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
                     .allowsHitTesting(false)
                 }
                 .frame(maxHeight: .infinity, alignment: .bottom)
-//                .background {
-//                    Color.clear
-//                        .contentShape(.rect)
-//                        .allowsHitTesting(isExpanded)
-//                        .onTapGesture { selectTab(tab: selection) }
-//                }
+            //                .background {
+            //                    Color.clear
+            //                        .contentShape(.rect)
+            //                        .allowsHitTesting(isExpanded)
+            //                        .onTapGesture { selectTab(tab: selection) }
+            //                }
         }
     }
+    
+    @State var searchPreviousTab: Tab? = nil
     
     // MARK: - Idle view
     var idle: some View {
         MorphContainer(blurRadiusMult: 3.15) {
             HStack(spacing: 15) {
                 LuckTabButton(animNS: animNS, isCompact: true, isSelected: true,
-                              action: { withAnimation(animation) { isExpanded.toggle() } }
+                              action: { searchFocusState = false; withAnimation(animation) { isExpanded.toggle() } }
                 ) {
-                    Label(selection.rawValue, systemImage: selection.icon)
+                    Label(selection.rawValue, systemImage: selection.icon != "magnifyingglass" ? selection.icon : searchPreviousTab?.icon ?? "ellipsis" )
                 }
                 .zIndex(1)
-         
+                
 #if false
                 MorphView {
                     Capsule().fill(.white)
@@ -111,23 +152,36 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
                 MorphView() {
                     HStack {
                         Image(systemName: "magnifyingglass")
+                            .imageScale(.small)
                             .foregroundStyle(.secondary)
-                        TextField("Search", text: $searchText)
+                        TextField("Artists, Songs, Lyrics and More", text: $searchText)
                             .focused($searchFocusState, equals: true)
+                            .onChange(of: searchFocusState) { oldValue, newValue in
+                                if newValue {
+                                    let searchTab = allTabs.filter { $0.icon == "magnifyingglass" }.first
+                                    if let searchTab = searchTab {
+                                        if selection != searchTab { searchPreviousTab = selection }
+                                        selectTab(tab: searchTab)
+                                    }
+                                } else {
+                                    if let prevTab = searchPreviousTab ?? allTabs.first {
+                                        selectTab(tab: prevTab)
+                                    }
+                                }
+                            }
+                            .font(.system(size: 14))
                     }
                     .padding(.horizontal)
                     .frame(maxHeight: .infinity)
                     .background() {
                         Capsule().fill(.clear)
                     }
-                    .onLongPressGesture(minimumDuration: 0.5) { isSlowmo.toggle() }
-                    .sensoryFeedback(.increase, trigger: isSlowmo)
                 }
                 .matchedGeometryEffect(id: "TabBar", in: animNS)
                 .frame(height: idleHeight)
 #endif
             }
-            .padding()
+            .padding() // TODO: This padding seems very important for the matched geometry effect to work on the search field... why?!
         } background: {
             if colorScheme == .light { Rectangle().fill(BackgroundStyle.background) }
             else                     { Rectangle().fill(Material.bar) }
@@ -139,15 +193,16 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     func selectTab(tab: Tab) {
         let isSearchTab = tab.icon == "magnifyingglass"
         
-        if !isSearchTab { selectionBinding.wrappedValue = tab }
-        withAnimation(animation) { isExpanded.toggle() } completion: {
+        if true || !isSearchTab { selectionBinding.wrappedValue = tab }
+        
+        withAnimation(animation) { isExpanded = false } completion: {
             if isSearchTab { searchFocusState = true }
         }
     }
     
     var expanded: some View {
-        HStack {
-            ForEach(allTabs) { tab in
+        HStack(spacing: 26) {
+            ForEach(allTabs.filter { $0.icon != "magnifyingglass" }) { tab in
                 LuckTabButton(animNS: animNS, isCompact: false, isSelected: tab == selection,
                               action: { selectTab(tab: tab) }
                 ) {
@@ -155,25 +210,18 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
                 }
             }
         }
-        .padding()
         .frame(maxWidth: .infinity)
         .frame(height: expandedHeight)
-        
         .background {
-            MorphContainer(blurRadiusMult: 2.85) {
-                MorphView {
-                    Capsule()
-                    //                        .fill(.thinMaterial)
-                        .fill(.clear)
-                    //                        .strokeBorder(lightBorder, lineWidth: 1.5)
-                        .onTapGesture { withAnimation(animation) { isExpanded = false } }
-                }
+            Capsule()
+                .fill(.thinMaterial)
+//                .fill(.clear)
+                .strokeBorder(lightBorder, lineWidth: 1.5)
+                .onTapGesture { withAnimation(animation) { isExpanded = false } }
                 .matchedGeometryEffect(id: "TabBar", in: animNS)
-            } background: {
-                Rectangle()
-                    .fill(Material.thinMaterial)
-            }
         }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
     }
     
     // MARK: - Light border

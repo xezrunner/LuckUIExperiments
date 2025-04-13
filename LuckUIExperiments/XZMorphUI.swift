@@ -46,9 +46,9 @@ struct MorphContainer<Content: View, Background: View>: View {
             .environment(\.meatballBlurRadiusMult, blurRadiusMult)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         
-//            .compositingGroup()
+            .compositingGroup()
 //            .blur(radius: 4 * blurRadiusMult)
-            .drawingGroup()
+//            .drawingGroup()
             .overlay {
                 ZStack {
                     Color(white: 0.5)
@@ -77,16 +77,17 @@ struct MorphView<Content: View>: View {
     @ViewBuilder public var content: Content    
     
     var body: some View {
-        content
-            .overlay {
-                Group {
-                    if isRequestingMeatball {
-                        Color.black
-                            .padding(blurRadius * meatballBlurRadiusMult / 2.5)
-                            .blur(radius: blurRadius * meatballBlurRadiusMult)
-                    }
+        if !isRequestingMeatball {
+            content
+        } else {
+            Group {
+                if isRequestingMeatball {
+                    Color.black
+                        .padding(blurRadius * meatballBlurRadiusMult / 2.5)
+                        .blur(radius: blurRadius * meatballBlurRadiusMult)
                 }
-                .allowsHitTesting(false)
             }
+            .allowsHitTesting(false)
+        }
     }
 }

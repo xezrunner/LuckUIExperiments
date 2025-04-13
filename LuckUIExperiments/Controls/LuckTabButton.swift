@@ -64,7 +64,7 @@ struct LuckTabButton<Label: View>: View {
                         AnyShapeStyle(BackgroundStyle.background) : AnyShapeStyle(BackgroundStyle.background.quaternary)
                     )
                     .opacity(isSelected ? 1 : 0)
-                    .animation(isSelected ? .none : .linear(duration: 0.3), value: isSelected)
+//                    .animation(isSelected ? .none : .linear(duration: 0.2), value: isSelected)
                     .matchedGeometryEffect(id: !isSelected ? "TabButton::\(id.uuidString)" : "ActiveTabButton", in: animNS)
                     .frame(width: isCompact ? nil : 90)
                     .compositingGroup()
@@ -73,18 +73,15 @@ struct LuckTabButton<Label: View>: View {
                 MorphView {
                     Capsule(style: .continuous)
                         .fill(
-                            //                    colorScheme == .light ?
-                            //                    AnyShapeStyle(BackgroundStyle.background) : isCompact ?
-                            //                    AnyShapeStyle(BackgroundStyle.background) : AnyShapeStyle(BackgroundStyle.background.quaternary)
                             Color.clear
                         )
                         .opacity(isSelected ? 1 : 0)
-                        .animation(isSelected ? .none : .linear(duration: 0.3), value: isSelected)
+//                        .animation(isSelected ? .none : .linear(duration: 0.2), value: isSelected)
                         .frame(width: isCompact ? nil : 90)
                         .compositingGroup()
                         .shadow(color: .black.opacity(!isSelected ? 0 : 0.1), radius: isCompact ? 0 : 4)
                 }
-                .matchedGeometryEffect(id: !isSelected ? "TabButton::\(id.uuidString)" : "ActiveTabButton", in: animNS)
+                .matchedGeometryEffect(id: !isSelected ? "TabButton::\(id.uuidString)" : "ActiveTabButton", in: animNS, properties: .position)
             }
         }
     }
