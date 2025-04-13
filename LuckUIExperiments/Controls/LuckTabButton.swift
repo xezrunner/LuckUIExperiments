@@ -2,11 +2,11 @@
 
 import SwiftUI
 
-struct LuckTabButtonExpandedLabel: LabelStyle {
+struct LuckTabButtonExpandedLabel: LabelStyle, Identifiable {
     let id: UUID
-    let animNS: Namespace.ID
+    let animNamespace: Namespace.ID
     
-    var isCompact = true
+    var isCompact  = true
     var isSelected = true
     
     @State private var titleTrigger = false
@@ -17,16 +17,19 @@ struct LuckTabButtonExpandedLabel: LabelStyle {
                 .frame(width: 24, height: 24)
                 .scaleEffect(isCompact ? 1.15 : 1.3)
                 .matchedGeometryEffect(id: !isSelected ? "TabButtonIcon::\(id.uuidString)" : "ActiveTabButtonIcon",
-                                       in: animNS, properties: .position)
+                                       in: animNamespace, properties: .position)
             
             configuration.title
                 .font(.footnote)
-                .fixedSize(horizontal: true, vertical: false)
+            
+                .fixedSize(horizontal: true, vertical: false) // Prevent text truncation
                 .frame(height: isCompact ? 0 : nil)
                 .padding(.top, !isCompact ? 4 : 0)
+            
                 .opacity(isCompact ? 0 : 1)
+            
                 .matchedGeometryEffect(id: !isSelected ? "TabButtonLabel::\(id.uuidString)" : "ActiveTabButtonLabel",
-                                       in: animNS, properties: .position)
+                                       in: animNamespace, properties: .position)
         }
         .padding(.horizontal, isCompact ? 0 : 4)
         .foregroundStyle(.tint)
@@ -34,13 +37,13 @@ struct LuckTabButtonExpandedLabel: LabelStyle {
     }
 }
 
-struct LuckTabButton<Label: View>: View {
+struct LuckTabButton<Label: View>: View, Identifiable {
+    let id = UUID()
+    let animNamespace: Namespace.ID
+    
     @Environment(\.colorScheme) var colorScheme
     
-    let id = UUID()
-    let animNS: Namespace.ID
-    
-    var isCompact = false
+    var isCompact  = false
     var isSelected = false
     
     var action: () -> Void
@@ -50,7 +53,7 @@ struct LuckTabButton<Label: View>: View {
         ZStack {
             Button(action: action) {
                 label
-                    .labelStyle(LuckTabButtonExpandedLabel(id: id, animNS: animNS, isCompact: isCompact, isSelected: isSelected))
+                    .labelStyle(LuckTabButtonExpandedLabel(id: id, animNamespace: animNamespace, isCompact: isCompact, isSelected: isSelected))
             }
         }
         .frame(width: isCompact ? 50 : nil, height: isCompact ? 50 : nil)
@@ -65,7 +68,7 @@ struct LuckTabButton<Label: View>: View {
                     )
                     .opacity(isSelected ? 1 : 0)
 //                    .animation(isSelected ? .none : .linear(duration: 0.2), value: isSelected)
-                    .matchedGeometryEffect(id: !isSelected ? "TabButton::\(id.uuidString)" : "ActiveTabButton", in: animNS)
+                    .matchedGeometryEffect(id: !isSelected ? "TabButton::\(id.uuidString)" : "ActiveTabButton", in: animNamespace)
                     .frame(width: isCompact ? nil : 90)
                     .compositingGroup()
                     .shadow(color: .black.opacity(!isSelected ? 0 : 0.1), radius: isCompact ? 0 : 4)
@@ -81,7 +84,7 @@ struct LuckTabButton<Label: View>: View {
                         .compositingGroup()
                         .shadow(color: .black.opacity(!isSelected ? 0 : 0.1), radius: isCompact ? 0 : 4)
                 }
-                .matchedGeometryEffect(id: !isSelected ? "TabButton::\(id.uuidString)" : "ActiveTabButton", in: animNS, properties: .position)
+                .matchedGeometryEffect(id: !isSelected ? "TabButton::\(id.uuidString)" : "ActiveTabButton", in: animNamespace, properties: .position)
             }
         }
     }

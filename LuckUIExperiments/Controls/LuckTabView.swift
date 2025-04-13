@@ -54,7 +54,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     }
     
     // MARK: -
-    @Namespace var animNS
+    @Namespace var animNamespace
     @Environment(\.colorScheme) var colorScheme
     
     let idleHeight    : CGFloat = 50
@@ -163,7 +163,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     var idle: some View {
         MorphContainer(blurRadiusMult: 3.15) {
             HStack(spacing: 15) {
-                LuckTabButton(animNS: animNS, isCompact: true, isSelected: true,
+                LuckTabButton(animNamespace: animNamespace, isCompact: true, isSelected: true,
                               action: { searchFocusState = false; withAnimation(animation) { isExpanded.toggle() } }
                 ) {
                     Label(selection.rawValue, systemImage: selection.icon != "magnifyingglass" ? selection.icon : searchPreviousTab?.icon ?? "ellipsis" )
@@ -204,7 +204,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
                         Capsule().fill(.clear)
                     }
                 }
-                .matchedGeometryEffect(id: "TabBar", in: animNS)
+                .matchedGeometryEffect(id: "TabBar", in: animNamespace)
                 .frame(height: idleHeight)
 #endif
             }
@@ -230,7 +230,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     var expanded: some View {
         HStack(spacing: 26) {
             ForEach(allTabs.filter { $0.icon != "magnifyingglass" }) { tab in
-                LuckTabButton(animNS: animNS, isCompact: false, isSelected: tab == selection,
+                LuckTabButton(animNamespace: animNamespace, isCompact: false, isSelected: tab == selection,
                               action: { selectTab(tab: tab) }
                 ) {
                     Label(tab.rawValue, systemImage: tab.icon)
@@ -245,7 +245,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
 //                .fill(.clear)
                 .strokeBorder(lightBorder, lineWidth: 1.5)
                 .onTapGesture { withAnimation(animation) { isExpanded = false } }
-                .matchedGeometryEffect(id: "TabBar", in: animNS)
+                .matchedGeometryEffect(id: "TabBar", in: animNamespace)
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
