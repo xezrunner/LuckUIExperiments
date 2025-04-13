@@ -1,5 +1,5 @@
 // LuckUIExperiments::VariableBlur.swift - 11/04/2025
-
+// https://github.com/nikstar/VariableBlur
 
 
 import SwiftUI
