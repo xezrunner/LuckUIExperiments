@@ -49,6 +49,32 @@
 			path = Controls;
 			sourceTree = "<group>";
 		};
+		214369482DAC7671005CC7FB /* Demos */ = {
+			isa = PBXGroup;
+			children = (
+				214369492DAC767E005CC7FB /* Apple Music Demo */,
+			);
+			path = Demos;
+			sourceTree = "<group>";
+		};
+		214369492DAC767E005CC7FB /* Apple Music Demo */ = {
+			isa = PBXGroup;
+			children = (
+				215F355D2DA7388600122F06 /* ContentView.swift */,
+				210C1FCC2DAAABA1008DB045 /* LibraryTabView.swift */,
+			);
+			path = "Apple Music Demo";
+			sourceTree = "<group>";
+		};
+		2143694A2DAC76D7005CC7FB /* Effects */ = {
+			isa = PBXGroup;
+			children = (
+				21E37DC92DA88A0F0002997C /* VariableBlur.swift */,
+				210C1FCA2DAA7864008DB045 /* XZMorphUI.swift */,
+			);
+			path = Effects;
+			sourceTree = "<group>";
+		};
 		215F35452DA7385E00122F06 = {
 			isa = PBXGroup;
 			children = (
@@ -68,12 +94,10 @@
 		215F355F2DA7388600122F06 /* LuckUIExperiments */ = {
 			isa = PBXGroup;
 			children = (
+				214369482DAC7671005CC7FB /* Demos */,
+				2143694A2DAC76D7005CC7FB /* Effects */,
 				212A4DA92DA8B0EB00B38DF3 /* Controls */,
-				215F355D2DA7388600122F06 /* ContentView.swift */,
-				210C1FCC2DAAABA1008DB045 /* LibraryTabView.swift */,
 				215F355E2DA7388600122F06 /* LuckUIExperimentsApp.swift */,
-				21E37DC92DA88A0F0002997C /* VariableBlur.swift */,
-				210C1FCA2DAA7864008DB045 /* XZMorphUI.swift */,
 				215F355C2DA7388600122F06 /* Assets.xcassets */,
 			);
 			path = LuckUIExperiments;

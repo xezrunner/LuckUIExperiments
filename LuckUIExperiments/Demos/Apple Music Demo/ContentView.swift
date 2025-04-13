@@ -2,33 +2,6 @@
 
 import SwiftUI
 
-protocol LuckNavigationDestination: CaseIterable, Identifiable, RawRepresentable
-where AllCases == Array<Self>, RawValue: StringProtocol {
-    var id: Self { get }
-    
-    associatedtype Content: View
-    @ViewBuilder func view() -> Content
-    
-    var icon: String { get }
-}
-
-extension LuckNavigationDestination {
-    var id: Self { self }
-    
-    var icon: String { get { return "gear" } }
-}
-
-private struct LuckSearchTextEnvironmentKey: EnvironmentKey {
-    static let defaultValue: String = ""
-}
-
-extension EnvironmentValues {
-    var luckSearchText: String {
-        get { self[LuckSearchTextEnvironmentKey.self] }
-        set { self[LuckSearchTextEnvironmentKey.self] = newValue }
-    }
-}
-
 struct ContentView: View {
     @Namespace var CVanimNS
     
