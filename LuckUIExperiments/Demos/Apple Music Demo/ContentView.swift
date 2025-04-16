@@ -50,7 +50,7 @@ struct ContentView: View {
         }
     }
     
-    @State var selectedTab: Tabs = .library
+    @State var selectedTab: Tabs = .home
     
     var body: some View {
         VStack {

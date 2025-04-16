@@ -8,33 +8,63 @@ extension EnvironmentValues {
 }
 
 struct MorphContainer<Content: View, Background: View>: View {
+    enum MorphMode { case Metal, Blending, Canvas }
+    
     public var blurRadiusMult: CGFloat = 1
+    
+    @State private var mode = MorphMode.Metal
     
     @ViewBuilder public var content:    Content
     @ViewBuilder public var background: Background
     
     var body: some View {
         content
-//            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(.rect)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        
+#if true // Toggle to debug seeing the mask
             .background {
-                background.mask(meatball_blending)
-//                background.mask(meatball_layer)
-                .allowsHitTesting(false)
+                background.mask(morphView)
+                    .allowsHitTesting(false)
             }
+#else
+            .overlay {
+                morphView
+            }
+#endif
+        
             .clipped()
     }
     
-    // The most compatible rendering of the metaball effect with SwiftUI Views.
-    // This lacks anti-aliasing and looks crunchy at the edges.
-    var meatball_blending: some View {
+    @ViewBuilder var morphView: some View {
+        switch mode {
+        case .Metal:    morphView_metal
+        case .Blending: morphView_blending
+        case .Canvas:   morphView_canvas
+        }
+    }
+    
+    // Anti-aliased Metal shader-based solution (best):
+    var morphView_metal: some View {
         content
             .environment(\.isRequestingMeatball, true)
             .environment(\.meatballBlurRadiusMult, blurRadiusMult)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         
             .compositingGroup()
-//            .blur(radius: 4 * blurRadiusMult)
-//            .drawingGroup()
+            .layerEffect(ShaderLibrary.metaball_blurred(), maxSampleOffset: .zero)
+    }
+    
+    // Entirely built-in constructs with blending modes in SwiftUI.
+    // This lacks anti-aliasing and looks crunchy at the edges.
+    var morphView_blending: some View {
+        content
+            .environment(\.isRequestingMeatball, true)
+            .environment(\.meatballBlurRadiusMult, blurRadiusMult)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        
+            .compositingGroup()
+            // .blur(radius: 4 * blurRadiusMult)
             .overlay {
                 ZStack {
                     Color(white: 0.5)
@@ -50,14 +80,12 @@ struct MorphContainer<Content: View, Background: View>: View {
             .colorInvert()
             .luminanceToAlpha()
         
-//            .clipped()
+            // .clipped()
     }
     
-    // Less compatible, but more straightforward and accurate.
-    // More specifically, it is incompatible with .matchedGeometryEffect() and similar (animations/transitions?)
-    // that rely on internal SwiftUI positioning.
-    // These elements have a canonical position of [global 0;0].
-    var meatball_layer: some View {
+    // This is incompatible with .matchedGeometryEffect() and similar (animations/transitions?) that rely on internal SwiftUI positioning.
+    // These elements end up have a canonical position of [global 0;0].
+    var morphView_canvas: some View {
         Canvas { context, size in
             context.addFilter(.alphaThreshold(min: 0.5, color: .white))
             
@@ -68,34 +96,49 @@ struct MorphContainer<Content: View, Background: View>: View {
             content
                 .environment(\.isRequestingMeatball, true)
                 .environment(\.meatballBlurRadiusMult, blurRadiusMult)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .tag(0)
         }
     }
-    
-    // TODO: shader version?
 }
 
-struct MorphView<Content: View>: View {
+struct MorphView<Content: View, Shape: View>: View {
     @Environment(\.isRequestingMeatball)   private var isRequestingMeatball
     @Environment(\.meatballBlurRadiusMult) private var meatballBlurRadiusMult
     
     public var blurRadius: CGFloat = 4.0
-
-    @ViewBuilder public var content: Content    
+    
+    @ViewBuilder public var content: Content
+    public var shape: Shape?
     
     var body: some View {
         if !isRequestingMeatball {
             content
         } else {
-            Group {
-                if isRequestingMeatball {
-                    Color.black
-                        .padding(blurRadius * meatballBlurRadiusMult / 2.5)
-                        .blur(radius: blurRadius * meatballBlurRadiusMult)
-                }
-            }
-            .allowsHitTesting(false)
+            shape // NOTE: will be 'content' if shape is nil! Should probably not do this, as we wouldn't want to render 'content' twice!
+                .blur(radius: !isRequestingMeatball ? 0 : blurRadius * meatballBlurRadiusMult)
         }
+    }
+}
+
+extension MorphView {
+    init(shape: Shape, blurRadius: CGFloat = 4.0, @ViewBuilder content: @escaping () -> Content) {
+        self.blurRadius = blurRadius
+        self.content = content()
+        self.shape = shape
+    }
+    
+    init(blurRadius: CGFloat = 4.0, @ViewBuilder content: @escaping () -> Content, @ViewBuilder shape: @escaping () -> Shape) {
+        self.blurRadius = blurRadius
+        self.content = content()
+        self.shape = shape()
+    }
+}
+
+extension MorphView where Shape == Content {
+    init(blurRadius: CGFloat = 4.0, @ViewBuilder content: @escaping () -> Content) {
+        self.blurRadius = blurRadius
+        self.content = content()
+        self.shape = content()
     }
 }

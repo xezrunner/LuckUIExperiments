@@ -22,10 +22,19 @@ private struct LuckSearchTextEnvironmentKey: EnvironmentKey {
     static let defaultValue: String = ""
 }
 
+private struct LuckTabViewAnimationKey: EnvironmentKey {
+    static let defaultValue: Animation = .default
+}
+
 extension EnvironmentValues {
     var luckSearchText: String {
         get { self[LuckSearchTextEnvironmentKey.self] }
         set { self[LuckSearchTextEnvironmentKey.self] = newValue }
+    }
+    
+    var luckTabViewAnimation: Animation {
+        set { self[LuckTabViewAnimationKey.self] = newValue }
+        get { self[LuckTabViewAnimationKey.self] }
     }
 }
 
@@ -65,10 +74,10 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     @State var searchText: String = ""
     @FocusState var searchFocusState: Bool
     
-    @State var isSlowmo = false
-    var animation: Animation { !isSlowmo ? normalAnimation : slowAnimation }
+    @State var isSlowmo = true
+    var animation: Animation { !isSlowmo ? normalAnimation : normalAnimation.speed(0.2) }
     
-    var slowAnimation:   Animation { Animation.spring(response: 2, dampingFraction: 0.83) }
+//    var slowAnimation:   Animation { Animation.spring(response: 10, dampingFraction: 0.83) }
     var normalAnimation: Animation { Animation.spring(response: 0.4, dampingFraction: 0.83) }
     
     @State var tabStripSize: CGSize = .zero
@@ -148,12 +157,6 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
                     .allowsHitTesting(false)
                 }
                 .frame(maxHeight: .infinity, alignment: .bottom)
-            //                .background {
-            //                    Color.clear
-            //                        .contentShape(.rect)
-            //                        .allowsHitTesting(isExpanded)
-            //                        .onTapGesture { selectTab(tab: selection) }
-            //                }
         }
     }
     
@@ -161,22 +164,28 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     
     // MARK: - Idle view
     var idle: some View {
-        MorphContainer(blurRadiusMult: 3.15) {
+        MorphContainer(blurRadiusMult: 1) {
             HStack(spacing: 15) {
-                LuckTabButton(animNamespace: animNamespace, isCompact: true, isSelected: true,
-                              action: { searchFocusState = false; withAnimation(animation) { isExpanded.toggle() } }
-                ) {
-                    Label(selection.rawValue, systemImage: selection.icon != "magnifyingglass" ? selection.icon : searchPreviousTab?.icon ?? "ellipsis" )
+                MorphView() {
+                    LuckTabButton(animNamespace: animNamespace, isCompact: true, isSelected: true, showFill: false, action: { searchFocusState = false; withAnimation(animation) { isExpanded.toggle() } }
+                    ) {
+                        Label(selection.rawValue, systemImage: selection.icon != "magnifyingglass" ? selection.icon : searchPreviousTab?.icon ?? "ellipsis" )
+                    }
+                } shape: {
+                    Capsule().matchedGeometryEffect(id: "ActiveTabButton", in: animNamespace)
                 }
+                .environment(\.luckTabViewAnimation, animation)
                 .zIndex(1)
                 
 #if false
                 MorphView {
-                    Capsule().fill(.white)
+                    Capsule().fill(.clear)
+                } shape: {
+                    Capsule()
                 }
-                .matchedGeometryEffect(id: "TabBar", in: animNS, properties: .frame)
+                .matchedGeometryEffect(id: "TabBar", in: animNamespace)
 #else
-                MorphView() {
+                MorphView(shape: Capsule()) {
                     HStack {
                         Image(systemName: "magnifyingglass")
                             .imageScale(.small)

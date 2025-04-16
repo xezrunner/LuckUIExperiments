@@ -6,6 +6,8 @@ struct LuckTabButtonExpandedLabel: LabelStyle, Identifiable {
     let id: UUID
     let animNamespace: Namespace.ID
     
+    @Environment(\.luckTabViewAnimation) var tabViewAnimation
+    
     var isCompact  = true
     var isSelected = true
     
@@ -46,6 +48,8 @@ struct LuckTabButton<Label: View>: View, Identifiable {
     var isCompact  = false
     var isSelected = false
     
+    var showFill = true
+    
     var action: () -> Void
     @ViewBuilder var label: Label
     
@@ -59,33 +63,18 @@ struct LuckTabButton<Label: View>: View, Identifiable {
         .frame(width: isCompact ? 50 : nil, height: isCompact ? 50 : nil)
         .padding(!isCompact ? 8 : 0)
         .background {
-            if !isCompact {
-                Capsule(style: .continuous)
-                    .fill(
-                        colorScheme == .light ?
-                        AnyShapeStyle(BackgroundStyle.background) : isCompact ?
-                        AnyShapeStyle(BackgroundStyle.background) : AnyShapeStyle(BackgroundStyle.background.quaternary)
-                    )
-                    .opacity(isSelected ? 1 : 0)
-//                    .animation(isSelected ? .none : .linear(duration: 0.2), value: isSelected)
-                    .matchedGeometryEffect(id: !isSelected ? "TabButton::\(id.uuidString)" : "ActiveTabButton", in: animNamespace)
-                    .frame(width: isCompact ? nil : 90)
-                    .compositingGroup()
-                    .shadow(color: .black.opacity(!isSelected ? 0 : 0.1), radius: isCompact ? 0 : 4)
-            } else {
-                MorphView {
-                    Capsule(style: .continuous)
-                        .fill(
-                            Color.clear
-                        )
-                        .opacity(isSelected ? 1 : 0)
-//                        .animation(isSelected ? .none : .linear(duration: 0.2), value: isSelected)
-                        .frame(width: isCompact ? nil : 90)
-                        .compositingGroup()
-                        .shadow(color: .black.opacity(!isSelected ? 0 : 0.1), radius: isCompact ? 0 : 4)
-                }
-                .matchedGeometryEffect(id: !isSelected ? "TabButton::\(id.uuidString)" : "ActiveTabButton", in: animNamespace, properties: .position)
-            }
+            Capsule(style: .continuous)
+                .fill(
+                    colorScheme == .light ?
+                    AnyShapeStyle(BackgroundStyle.background) : isCompact ?
+                    AnyShapeStyle(BackgroundStyle.background) : AnyShapeStyle(BackgroundStyle.background.quaternary)
+                )
+                .opacity(showFill ? (isSelected ? 1 : 0) : 0)
+                // .animation(isSelected ? .none : .linear(duration: 0.2), value: isSelected)
+                .matchedGeometryEffect(id: !isSelected ? "TabButton::\(id.uuidString)" : "ActiveTabButton", in: animNamespace)
+                .frame(width: isCompact ? nil : 90)
+                .compositingGroup()
+                .shadow(color: .black.opacity(!isSelected ? 0 : 0.1), radius: isCompact ? 0 : 4)
         }
     }
 }

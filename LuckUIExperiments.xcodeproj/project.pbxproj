@@ -11,6 +11,7 @@
 		210C1FCD2DAAABA1008DB045 /* LibraryTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 210C1FCC2DAAABA1008DB045 /* LibraryTabView.swift */; };
 		212A4DA82DA8B0DF00B38DF3 /* LuckTabButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 212A4DA72DA8B0DF00B38DF3 /* LuckTabButton.swift */; };
 		212A4DAB2DA8B10100B38DF3 /* LuckTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 212A4DAA2DA8B10100B38DF3 /* LuckTabView.swift */; };
+		215C68A32DB04E73005F1F6A /* metaball_blurred.metal in Sources */ = {isa = PBXBuildFile; fileRef = 215C68A22DB04E70005F1F6A /* metaball_blurred.metal */; };
 		215F35602DA7388600122F06 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215F355D2DA7388600122F06 /* ContentView.swift */; };
 		215F35612DA7388600122F06 /* LuckUIExperimentsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215F355E2DA7388600122F06 /* LuckUIExperimentsApp.swift */; };
 		215F35622DA7388600122F06 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 215F355C2DA7388600122F06 /* Assets.xcassets */; };
@@ -22,6 +23,7 @@
 		210C1FCC2DAAABA1008DB045 /* LibraryTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryTabView.swift; sourceTree = "<group>"; };
 		212A4DA72DA8B0DF00B38DF3 /* LuckTabButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LuckTabButton.swift; sourceTree = "<group>"; };
 		212A4DAA2DA8B10100B38DF3 /* LuckTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LuckTabView.swift; sourceTree = "<group>"; };
+		215C68A22DB04E70005F1F6A /* metaball_blurred.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = metaball_blurred.metal; sourceTree = "<group>"; };
 		215F354E2DA7385E00122F06 /* LuckUIExperiments.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LuckUIExperiments.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		215F355C2DA7388600122F06 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		215F355D2DA7388600122F06 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -94,6 +96,7 @@
 		215F355F2DA7388600122F06 /* LuckUIExperiments */ = {
 			isa = PBXGroup;
 			children = (
+				219427982DAEC1AB00F7E1B4 /* Shaders */,
 				214369482DAC7671005CC7FB /* Demos */,
 				2143694A2DAC76D7005CC7FB /* Effects */,
 				212A4DA92DA8B0EB00B38DF3 /* Controls */,
@@ -101,6 +104,14 @@
 				215F355C2DA7388600122F06 /* Assets.xcassets */,
 			);
 			path = LuckUIExperiments;
+			sourceTree = "<group>";
+		};
+		219427982DAEC1AB00F7E1B4 /* Shaders */ = {
+			isa = PBXGroup;
+			children = (
+				215C68A22DB04E70005F1F6A /* metaball_blurred.metal */,
+			);
+			path = Shaders;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -180,6 +191,7 @@
 				210C1FCB2DAA7864008DB045 /* XZMorphUI.swift in Sources */,
 				212A4DA82DA8B0DF00B38DF3 /* LuckTabButton.swift in Sources */,
 				215F35602DA7388600122F06 /* ContentView.swift in Sources */,
+				215C68A32DB04E73005F1F6A /* metaball_blurred.metal in Sources */,
 				212A4DAB2DA8B10100B38DF3 /* LuckTabView.swift in Sources */,
 				215F35612DA7388600122F06 /* LuckUIExperimentsApp.swift in Sources */,
 				21E37DCA2DA88A0F0002997C /* VariableBlur.swift in Sources */,
