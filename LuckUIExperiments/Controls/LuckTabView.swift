@@ -50,7 +50,9 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     // MARK: - Props
     @Namespace private var animNS
     
-    @State var searchText: String = ""
+    @State var isTabStripExpanded = false
+    
+    @State var searchFieldText: String = ""
     
     // TODO: remove?
 //    @State private var tabStripAreaSize: CGSize = .zero
@@ -59,7 +61,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         // MARK: - Tab content
         Group {
             selection.view()
-                .environment(\.luckSearchText, searchText)
+                .environment(\.luckSearchText, searchFieldText)
         }
         // MARK: - Tab strip legibility overlay
         .overlay(alignment: .bottom) { tabStripLegibilityOverlay }
@@ -76,13 +78,17 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     
     // TODO: custom
     var tabStripTopContent: some View {
-        Text("< top content >")
-            .padding()
-            .background(.gray)
+        VStack {
+            Text("< top content >")
+                .padding()
+                .background(.gray)
+        }
     }
     
     var tabStrip: some View {
-        LuckTabViewStrip(animNS: animNS, allTabs: allTabs, selectedTab: _selectionBinding)
+        LuckTabViewStrip(animNS: animNS,
+                         allTabs: allTabs, selectedTab: _selectionBinding,
+                         searchFieldText: $searchFieldText, isExpanded: $isTabStripExpanded)
             .padding() // ⚠️
     }
     
@@ -108,11 +114,53 @@ struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
     var allTabs: Array<Tab>
     @Binding var selectedTab: Tab
     
+    @Binding var searchFieldText: String
+    
+    @Binding var isExpanded: Bool
+    
     var body: some View {
-        expanded
+        VStack {
+            #if true
+            debugBox
+            #endif
+            
+            if !isExpanded { collapsedView }
+            else           { expandedView }
+        }
     }
     
-    @State var currentIcon: String = "magnifyingglass"
+    var debugBox: some View {
+        HStack {
+            Toggle("isExpanded", isOn: $isExpanded)
+        }
+        .background(.gray)
+    }
+    
+    var collapsedView: some View {
+        HStack {
+            // MARK: - Compact tab button
+            // TODO: optical alignment: this button should probably be slightly smaller than the search field
+            Button() {
+                withAnimation { isExpanded = true }
+            } label: {
+                Label(selectedTab.rawValue, systemImage: selectedTab.icon)
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(LuckTabViewStripCompactButtonStyle())
+            
+            // MARK: - Search field
+            // TODO: block compact view mode if search isn't requested/available
+            HStack {
+                Image(systemName: "magnifyingglass")
+//                    .imageScale(.small)
+                    .foregroundStyle(.secondary)
+                TextField("Artists, Songs, Lyrics and More", text: $searchFieldText) // TODO: placeholder parameter
+                    .font(.system(size: 14))
+            }
+            .padding()
+            .background(Capsule().fill(.background))
+        }
+    }
     
     func setTab(tab: Tab) {
 //        withAnimation { // TODO: <Notes>
@@ -120,7 +168,7 @@ struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
 //        }
     }
     
-    var expanded: some View {
+    var expandedView: some View {
         HStack(spacing: 0) {
             ForEach(allTabs) { tab in
                 LuckTabViewStripButton(animNS: animNS, isSelected: tab == selectedTab) {

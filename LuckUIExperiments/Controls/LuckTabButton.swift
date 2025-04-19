@@ -2,6 +2,17 @@
 
 import SwiftUI
 
+struct LuckTabViewStripCompactButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .labelStyle(.iconOnly)
+            .foregroundStyle(.secondary)
+        
+            .padding()
+            .background(Circle().fill(.background))
+    }
+}
+
 struct LuckTabViewStripButtonLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         VStack(spacing: 0) {
