@@ -54,7 +54,7 @@ struct ContentView: View {
     
     var body: some View {
         VStack {
-            LuckTabView(tabs: Tabs.self, selection: $selectedTab)
+            LuckTabView(tabType: Tabs.self, selection: $selectedTab)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

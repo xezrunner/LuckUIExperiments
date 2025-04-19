@@ -15,6 +15,7 @@
 		215F35602DA7388600122F06 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215F355D2DA7388600122F06 /* ContentView.swift */; };
 		215F35612DA7388600122F06 /* LuckUIExperimentsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215F355E2DA7388600122F06 /* LuckUIExperimentsApp.swift */; };
 		215F35622DA7388600122F06 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 215F355C2DA7388600122F06 /* Assets.xcassets */; };
+		21A43D092DB072CA0078E00D /* Temp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21A43D082DB072C90078E00D /* Temp.swift */; };
 		21E37DCA2DA88A0F0002997C /* VariableBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21E37DC92DA88A0F0002997C /* VariableBlur.swift */; };
 /* End PBXBuildFile section */
 
@@ -28,6 +29,7 @@
 		215F355C2DA7388600122F06 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		215F355D2DA7388600122F06 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		215F355E2DA7388600122F06 /* LuckUIExperimentsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LuckUIExperimentsApp.swift; sourceTree = "<group>"; };
+		21A43D082DB072C90078E00D /* Temp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Temp.swift; sourceTree = "<group>"; };
 		21E37DC92DA88A0F0002997C /* VariableBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VariableBlur.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -96,6 +98,7 @@
 		215F355F2DA7388600122F06 /* LuckUIExperiments */ = {
 			isa = PBXGroup;
 			children = (
+				21A43D082DB072C90078E00D /* Temp.swift */,
 				219427982DAEC1AB00F7E1B4 /* Shaders */,
 				214369482DAC7671005CC7FB /* Demos */,
 				2143694A2DAC76D7005CC7FB /* Effects */,
@@ -190,6 +193,7 @@
 			files = (
 				210C1FCB2DAA7864008DB045 /* XZMorphUI.swift in Sources */,
 				212A4DA82DA8B0DF00B38DF3 /* LuckTabButton.swift in Sources */,
+				21A43D092DB072CA0078E00D /* Temp.swift in Sources */,
 				215F35602DA7388600122F06 /* ContentView.swift in Sources */,
 				215C68A32DB04E73005F1F6A /* metaball_blurred.metal in Sources */,
 				212A4DAB2DA8B10100B38DF3 /* LuckTabView.swift in Sources */,

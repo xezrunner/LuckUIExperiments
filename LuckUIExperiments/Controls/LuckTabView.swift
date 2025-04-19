@@ -2,7 +2,7 @@
 
 import SwiftUI
 
-protocol LuckNavigationDestination: CaseIterable, Identifiable, RawRepresentable
+protocol LuckNavigationDestination: CaseIterable, Identifiable, Equatable, RawRepresentable
 where AllCases == Array<Self>, RawValue: StringProtocol {
     var id: Self { get }
     
@@ -18,27 +18,128 @@ extension LuckNavigationDestination {
     var icon: String { get { return "gear" } }
 }
 
-private struct LuckSearchTextEnvironmentKey: EnvironmentKey {
-    static let defaultValue: String = ""
-}
-
-private struct LuckTabViewAnimationKey: EnvironmentKey {
-    static let defaultValue: Animation = .default
-}
-
 extension EnvironmentValues {
-    var luckSearchText: String {
-        get { self[LuckSearchTextEnvironmentKey.self] }
-        set { self[LuckSearchTextEnvironmentKey.self] = newValue }
-    }
-    
-    var luckTabViewAnimation: Animation {
-        set { self[LuckTabViewAnimationKey.self] = newValue }
-        get { self[LuckTabViewAnimationKey.self] }
-    }
+    @Entry var luckSearchText: String = ""
+    @Entry var luckTabViewAnimation: Animation = .default // TODO: remove?
 }
 
 struct LuckTabView<Tab: LuckNavigationDestination>: View {
+    private let allTabs: Array<Tab>
+    
+    @State private var _internalSelection: Tab
+           private var _externalSelection: Binding<Tab>? = nil
+    
+    private var _selectionBinding: Binding<Tab> { _externalSelection ?? $_internalSelection }
+    
+    var selection: Tab {
+        get { _selectionBinding.wrappedValue }
+        set { _selectionBinding.wrappedValue = newValue }
+    }
+    
+    init(tabType: Tab.Type) {
+        allTabs = tabType.allCases
+        assert(allTabs.count > 0)
+        __internalSelection = State(initialValue: allTabs.first!)
+    }
+    
+    init(tabType: Tab.Type, selection: Binding<Tab>) {
+        self.init(tabType: tabType)
+        _externalSelection = selection
+    }
+    
+    // MARK: - Props
+    @Namespace private var animNS
+    
+    @State var searchText: String = ""
+    
+    // TODO: remove?
+//    @State private var tabStripAreaSize: CGSize = .zero
+    
+    var body: some View {
+        // MARK: - Tab content
+        Group {
+            selection.view()
+                .environment(\.luckSearchText, searchText)
+        }
+        // MARK: - Tab strip legibility overlay
+        .overlay(alignment: .bottom) { tabStripLegibilityOverlay }
+        // MARK: - Tab strip content
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 0) {
+                tabStripTopContent
+                tabStrip
+            }
+            // TODO: remove?
+//            .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { tabStripAreaSize = $0 })
+        }
+    }
+    
+    // TODO: custom
+    var tabStripTopContent: some View {
+        Text("< top content >")
+            .padding()
+            .background(.gray)
+    }
+    
+    var tabStrip: some View {
+        LuckTabViewStrip(animNS: animNS, allTabs: allTabs, selectedTab: _selectionBinding)
+            .padding() // ⚠️
+    }
+    
+    var tabStripLegibilityOverlay: some View {
+        ZStack {
+            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                .opacity(0.3)
+            
+            VariableBlurView(maxBlurRadius: 4, direction: .blurredBottomClearTop, startOffset: 0)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        // NOTE: Because tabStrip and its siblings are in a safeAreaInset, the overlay
+        // ends up automatically accounting for their size and drawing "behind them".
+        // Because of that, this just adds padding:
+        .frame(maxHeight: 32)
+    }
+}
+
+struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
+    var animNS: Namespace.ID
+    
+    var allTabs: Array<Tab>
+    @Binding var selectedTab: Tab
+    
+    var body: some View {
+        expanded
+    }
+    
+    @State var currentIcon: String = "magnifyingglass"
+    
+    func setTab(tab: Tab) {
+//        withAnimation { // TODO: <Notes>
+            selectedTab = tab
+//        }
+    }
+    
+    var expanded: some View {
+        HStack(spacing: 0) {
+            ForEach(allTabs) { tab in
+                LuckTabViewStripButton(animNS: animNS, isSelected: tab == selectedTab) {
+                    setTab(tab: tab)
+                } label: {
+                    Label(tab.rawValue, systemImage: tab.icon)
+                }
+                .animation(.smooth, value: selectedTab)
+            }
+        }
+        .padding(8)
+        .background(
+            Capsule().fill(.ultraThinMaterial)
+        )
+    }
+}
+
+#if false
+struct LuckTabView2<Tab: LuckNavigationDestination>: View {
     // MARK: - Tabs
     var tabs: Tab.Type
     
@@ -167,14 +268,14 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         MorphContainer(blurRadiusMult: 1) {
             HStack(spacing: 15) {
                 MorphView() {
-                    LuckTabButton(animNamespace: animNamespace, isCompact: true, isSelected: true, showFill: false, action: { searchFocusState = false; withAnimation(animation) { isExpanded.toggle() } }
+                    LuckTabButton(id: String(selection.rawValue), animNamespace: animNamespace, isCompact: true, isSelected: true, showFill: false, action: { searchFocusState = false; withAnimation(animation) { isExpanded.toggle() } }
                     ) {
                         Label(selection.rawValue, systemImage: selection.icon != "magnifyingglass" ? selection.icon : searchPreviousTab?.icon ?? "ellipsis" )
                     }
                 } shape: {
                     Capsule().matchedGeometryEffect(id: "ActiveTabButton", in: animNamespace)
                 }
-                .environment(\.luckTabViewAnimation, animation)
+//                .environment(\.luckTabViewAnimation, animation)
                 .zIndex(1)
                 
 #if false
@@ -239,7 +340,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     var expanded: some View {
         HStack(spacing: 26) {
             ForEach(allTabs.filter { $0.icon != "magnifyingglass" }) { tab in
-                LuckTabButton(animNamespace: animNamespace, isCompact: false, isSelected: tab == selection,
+                LuckTabButton(id: String(tab.rawValue), animNamespace: animNamespace, isCompact: false, isSelected: tab == selection,
                               action: { selectTab(tab: tab) }
                 ) {
                     Label(tab.rawValue, systemImage: tab.icon)
@@ -288,4 +389,9 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         )
         .blendMode(colorScheme == .light ? .hardLight : .overlay)
     }
+}
+#endif
+
+#Preview {
+    ContentView()
 }
