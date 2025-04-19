@@ -23,7 +23,25 @@ extension EnvironmentValues {
     @Entry var luckTabViewAnimation: Animation = .default // TODO: remove?
 }
 
+public enum LuckTabViewStripBehavior: String, CaseIterable, Identifiable, Equatable {
+    public var id: Self { self }
+    
+    // 1. Idle state is expanded mode -> compact mode on search
+    // This is canonical according to leaks / most comparable to current behavior.
+    case CompactOnSearch
+    // 2. Idle state is expanded mode -> compact mode on scroll and search
+    case CompactOnScroll
+    // 3. Idle state is compact mode - expanded mode only on command
+    // As seen on X demo.
+    case CompactAsDefault
+    
+    public static var `default`: Self { CompactOnSearch }
+}
+
 struct LuckTabView<Tab: LuckNavigationDestination>: View {
+    @Namespace private var animNS
+    
+    // MARK: - Tab-related variables
     private let allTabs: Array<Tab>
     
     @State private var _internalSelection: Tab
@@ -36,26 +54,22 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         set { _selectionBinding.wrappedValue = newValue }
     }
     
-    init(tabType: Tab.Type) {
+    // MARK: - Other variables
+    @State var tabStripBehavior: LuckTabViewStripBehavior
+    
+    init(tabType: Tab.Type, tabSelection: Binding<Tab>? = nil,
+         tabStripBehavior: LuckTabViewStripBehavior = .default) {
         allTabs = tabType.allCases
         assert(allTabs.count > 0)
+        
         __internalSelection = State(initialValue: allTabs.first!)
+        _externalSelection = tabSelection
+        
+        self.tabStripBehavior = tabStripBehavior
     }
-    
-    init(tabType: Tab.Type, selection: Binding<Tab>) {
-        self.init(tabType: tabType)
-        _externalSelection = selection
-    }
-    
-    // MARK: - Props
-    @Namespace private var animNS
     
     @State var isTabStripExpanded = false
-    
-    @State var searchFieldText: String = ""
-    
-    // TODO: remove?
-//    @State private var tabStripAreaSize: CGSize = .zero
+    @State private var searchFieldText: String = ""
     
     var body: some View {
         // MARK: - Tab content
@@ -71,8 +85,6 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
                 tabStripTopContent
                 tabStrip
             }
-            // TODO: remove?
-//            .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { tabStripAreaSize = $0 })
         }
     }
     
@@ -88,7 +100,8 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     var tabStrip: some View {
         LuckTabViewStrip(animNS: animNS,
                          allTabs: allTabs, selectedTab: _selectionBinding,
-                         searchFieldText: $searchFieldText, isExpanded: $isTabStripExpanded)
+                         tabStripBehavior: $tabStripBehavior, isExpanded: $isTabStripExpanded,
+                         searchFieldText: $searchFieldText)
             .padding() // ⚠️
     }
     
@@ -108,19 +121,21 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     }
 }
 
-struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
+fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
     var animNS: Namespace.ID
     
-    var allTabs: Array<Tab>
-    @Binding var selectedTab: Tab
+    public var allTabs: Array<Tab>
+    @Binding public var selectedTab: Tab
     
-    @Binding var searchFieldText: String
+    @Binding public var tabStripBehavior: LuckTabViewStripBehavior
     
-    @Binding var isExpanded: Bool
+    @Binding public var isExpanded: Bool
+    
+    @Binding public var searchFieldText: String
     
     var body: some View {
         VStack {
-            #if true
+            #if false
             debugBox
             #endif
             
@@ -130,7 +145,12 @@ struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
     }
     
     var debugBox: some View {
-        HStack {
+        VStack {
+            Picker("Behavior", selection: $tabStripBehavior) {
+                ForEach(LuckTabViewStripBehavior.allCases) { tab in Text(tab.rawValue) }
+            }
+            .pickerStyle(.palette)
+            
             Toggle("isExpanded", isOn: $isExpanded)
         }
         .background(.gray)
@@ -154,6 +174,7 @@ struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                 Image(systemName: "magnifyingglass")
 //                    .imageScale(.small)
                     .foregroundStyle(.secondary)
+                
                 TextField("Artists, Songs, Lyrics and More", text: $searchFieldText) // TODO: placeholder parameter
                     .font(.system(size: 14))
             }
@@ -163,9 +184,10 @@ struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
     }
     
     func setTab(tab: Tab) {
-//        withAnimation { // TODO: <Notes>
-            selectedTab = tab
-//        }
+        selectedTab = tab
+        withAnimation { // @Behavior
+            isExpanded = false
+        }
     }
     
     var expandedView: some View {
@@ -176,7 +198,7 @@ struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                 } label: {
                     Label(tab.rawValue, systemImage: tab.icon)
                 }
-                .animation(.smooth, value: selectedTab)
+//                .animation(.smooth, value: selectedTab) // @Behavior
             }
         }
         .padding(8)
