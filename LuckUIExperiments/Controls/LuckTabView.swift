@@ -70,7 +70,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         self.tabStripBehavior = tabStripBehavior
     }
     
-    @State private var isTabStripExpanded: Bool = true
+    @State private var isTabStripExpanded: Bool = false
     @State private var searchFieldText: String = ""
     
     var body: some View {
@@ -193,7 +193,10 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
             ForEach(tabs) { tab in
                 LuckTabViewStripButton(animNS: animNS, isSelected: tab == selectedTab,
                                        icon: tab.icon, title: tab.rawValue as! String,
-                                       action: { selectedTab = tab })
+                                       action: {
+                    if selectedTab == tab { isExpanded = false } // HACK: @Behavior
+                    selectedTab = tab
+                })
                 .onChange(of: selectedTab, { isExpanded = false })
                 // .animation(.smooth, value: selectedTab) // @Behavior  smooth selection indicator position change
             }
