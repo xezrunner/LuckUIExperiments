@@ -203,7 +203,7 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
         }
         .padding(6)
         .background(
-            Capsule().fill(.ultraThinMaterial)
+            Capsule().fill(.thinMaterial)
                 .matchedGeometryEffect(id: "luckTabViewStripExpandedViewBar", in: animNS)
         )
     }
