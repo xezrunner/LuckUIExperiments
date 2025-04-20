@@ -2,50 +2,66 @@
 
 import SwiftUI
 
-struct LuckTabViewStripCompactButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .labelStyle(.iconOnly)
-            .foregroundStyle(.secondary)
-        
-            .padding()
-            .background(Circle().fill(.background))
-    }
-}
-
-struct LuckTabViewStripButtonLabelStyle: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        VStack(spacing: 0) {
-            configuration.icon
-                .frame(width: 24, height: 24)
-            
-            configuration.title
-                .font(.footnote)
-                .fixedSize(horizontal: true, vertical: false)
+struct LuckTabViewStripCompactButton: View, Identifiable {
+    let id = UUID()
+    
+    var animNS: Namespace.ID
+    
+    var icon: String
+    var action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack {
+                Image(systemName: icon)
+                    .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabelIcon", in: animNS)
+                    .frame(width: 24, height: 24)
+                    .padding(12)
+            }
+            .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabel", in: animNS, properties: .position)
         }
-        .padding(.vertical, 8)
+        .foregroundStyle(.secondary)
+        .background(
+            Capsule().fill(.background)
+                .matchedGeometryEffect(id: "luckTabViewStripTabButton", in: animNS)
+        )
     }
 }
 
-struct LuckTabViewStripButton<Label: View>: View {
+struct LuckTabViewStripButton: View, Identifiable {
+    let id = UUID()
+    
     var animNS: Namespace.ID
     
     var isSelected: Bool = false
     
+    var icon: String
+    var title: String
+    
     var action: () -> Void
-    @ViewBuilder var label: Label
     
     var body: some View {
         Button(action: action) {
-            label
-                .labelStyle(LuckTabViewStripButtonLabelStyle())
-                .foregroundStyle(isSelected ? .accent : .secondary)
-                .frame(maxWidth: .infinity)
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .imageScale(.large)
+                    .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabelIcon\(!isSelected ? id.uuidString : "")", in: animNS)
+                    .frame(width: 24, height: 24)
+                
+                Text(title)
+                    .font(.footnote)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+            .foregroundStyle(isSelected ? .accent : .secondary)
+            
+            .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabel\(!isSelected ? id.uuidString : "")", in: animNS, properties: .position)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
         }
         .background {
             if isSelected {
                 Capsule().fill(.background)
-                    .matchedGeometryEffect(id: "luckTabViewStripButton", in: animNS)
+                    .matchedGeometryEffect(id: "luckTabViewStripTabButton", in: animNS)
             }
         }
     }

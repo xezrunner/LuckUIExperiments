@@ -54,8 +54,10 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         set { _selectionBinding.wrappedValue = newValue }
     }
     
-    // MARK: - Other variables
+    // MARK: - Other properties
     @State var tabStripBehavior: LuckTabViewStripBehavior
+    
+    private var isSlowmo = false
     
     init(tabType: Tab.Type, tabSelection: Binding<Tab>? = nil,
          tabStripBehavior: LuckTabViewStripBehavior = .default) {
@@ -68,7 +70,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         self.tabStripBehavior = tabStripBehavior
     }
     
-    @State var isTabStripExpanded = false
+    @State private var isTabStripExpanded: Bool = true
     @State private var searchFieldText: String = ""
     
     var body: some View {
@@ -102,7 +104,8 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
                          allTabs: allTabs, selectedTab: _selectionBinding,
                          tabStripBehavior: $tabStripBehavior, isExpanded: $isTabStripExpanded,
                          searchFieldText: $searchFieldText)
-            .padding() // ⚠️
+            .padding(24) // ⚠️
+            .animation(.spring(response: 0.4, dampingFraction: 0.83).speed(isSlowmo ? 0.3 : 1), value: isTabStripExpanded)
     }
     
     var tabStripLegibilityOverlay: some View {
@@ -135,7 +138,7 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
     
     var body: some View {
         VStack {
-            #if false
+            #if true
             debugBox
             #endif
             
@@ -160,13 +163,10 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
         HStack {
             // MARK: - Compact tab button
             // TODO: optical alignment: this button should probably be slightly smaller than the search field
-            Button() {
-                withAnimation { isExpanded = true }
-            } label: {
-                Label(selectedTab.rawValue, systemImage: selectedTab.icon)
-                    .labelStyle(.iconOnly)
+            LuckTabViewStripCompactButton(animNS: animNS, icon: selectedTab.icon) {
+                isExpanded = true
             }
-            .buttonStyle(LuckTabViewStripCompactButtonStyle())
+            .zIndex(1) // TODO: maybe we should just have our custom button...
             
             // MARK: - Search field
             // TODO: block compact view mode if search isn't requested/available
@@ -179,31 +179,29 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                     .font(.system(size: 14))
             }
             .padding()
-            .background(Capsule().fill(.background))
-        }
-    }
-    
-    func setTab(tab: Tab) {
-        selectedTab = tab
-        withAnimation { // @Behavior
-            isExpanded = false
+            .background(
+                Capsule().fill(.background)
+                    .matchedGeometryEffect(id: "luckTabViewStripExpandedViewBar", in: animNS)
+            )
+            
         }
     }
     
     var expandedView: some View {
         HStack(spacing: 0) {
-            ForEach(allTabs) { tab in
-                LuckTabViewStripButton(animNS: animNS, isSelected: tab == selectedTab) {
-                    setTab(tab: tab)
-                } label: {
-                    Label(tab.rawValue, systemImage: tab.icon)
-                }
-//                .animation(.smooth, value: selectedTab) // @Behavior
+            let tabs = allTabs.filter { $0.icon != "magnifyingglass" }
+            ForEach(tabs) { tab in
+                LuckTabViewStripButton(animNS: animNS, isSelected: tab == selectedTab,
+                                       icon: tab.icon, title: tab.rawValue as! String,
+                                       action: { selectedTab = tab })
+                .onChange(of: selectedTab, { isExpanded = false })
+                // .animation(.smooth, value: selectedTab) // @Behavior  smooth selection indicator position change
             }
         }
-        .padding(8)
+        .padding(6)
         .background(
             Capsule().fill(.ultraThinMaterial)
+                .matchedGeometryEffect(id: "luckTabViewStripExpandedViewBar", in: animNS)
         )
     }
 }
