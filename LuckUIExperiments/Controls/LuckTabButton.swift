@@ -44,7 +44,7 @@ struct LuckTabViewStripButton: View, Identifiable {
         Button(action: action) {
             VStack(spacing: 4) {
                 Image(systemName: icon)
-                    .imageScale(.large)
+                    .scaleEffect(1.25)
                     .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabelIcon\(!isSelected ? id.uuidString : "")", in: animNS)
                     .frame(width: 24, height: 24)
                 
