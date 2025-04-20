@@ -57,7 +57,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     // MARK: - Other properties
     @State var tabStripBehavior: LuckTabViewStripBehavior
     
-    private var isSlowmo = false
+    @State private var isSlowmo = false
     
     init(tabType: Tab.Type, tabSelection: Binding<Tab>? = nil,
          tabStripBehavior: LuckTabViewStripBehavior = .default) {
@@ -83,11 +83,15 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         .overlay(alignment: .bottom) { tabStripLegibilityOverlay }
         // MARK: - Tab strip content
         .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 0) {
+            VStack {
                 tabStripTopContent
                 tabStrip
             }
+            .padding(24) // ⚠️
         }
+        
+        // MARK: - Tab strip state animation
+        .animation(.spring(response: 0.4, dampingFraction: 0.83).speed(isSlowmo ? 0.3 : 1), value: isTabStripExpanded)
     }
     
     // TODO: custom
@@ -96,6 +100,8 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
             Text("< top content >")
                 .padding()
                 .background(.gray)
+            
+            if (true) { debugBox }
         }
     }
     
@@ -104,8 +110,6 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
                          allTabs: allTabs, selectedTab: _selectionBinding,
                          tabStripBehavior: $tabStripBehavior, isExpanded: $isTabStripExpanded,
                          searchFieldText: $searchFieldText)
-            .padding(24) // ⚠️
-            .animation(.spring(response: 0.4, dampingFraction: 0.83).speed(isSlowmo ? 0.3 : 1), value: isTabStripExpanded)
     }
     
     var tabStripLegibilityOverlay: some View {
@@ -121,6 +125,26 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         // ends up automatically accounting for their size and drawing "behind them".
         // Because of that, this just adds padding:
         .frame(maxHeight: 32)
+    }
+    
+    var debugBox: some View {
+        VStack {
+            HStack {
+                Text("Behavior")
+                Spacer()
+                Picker("Behavior", selection: $tabStripBehavior) {
+                    ForEach(LuckTabViewStripBehavior.allCases) { tab in Text(tab.rawValue) }
+                }
+            }
+            
+            Toggle("Slow Motion Animations", isOn: $isSlowmo)
+            Toggle("Is Tab Strip Expanded", isOn: $isTabStripExpanded)
+        }
+        .monospaced()
+        .font(.system(size: 14))
+        .padding()
+        .background(.regularMaterial)
+        .clipShape(.rect(cornerRadius: 12))
     }
 }
 
@@ -138,25 +162,9 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
     
     var body: some View {
         VStack {
-            #if true
-            debugBox
-            #endif
-            
             if !isExpanded { collapsedView }
             else           { expandedView }
         }
-    }
-    
-    var debugBox: some View {
-        VStack {
-            Picker("Behavior", selection: $tabStripBehavior) {
-                ForEach(LuckTabViewStripBehavior.allCases) { tab in Text(tab.rawValue) }
-            }
-            .pickerStyle(.palette)
-            
-            Toggle("isExpanded", isOn: $isExpanded)
-        }
-        .background(.gray)
     }
     
     var collapsedView: some View {
