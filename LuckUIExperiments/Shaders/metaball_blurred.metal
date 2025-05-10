@@ -13,5 +13,5 @@ using namespace metal;
         half edge = w * 0.5;
         
         float alpha = smoothstep(threshold - edge, threshold + edge, s.a);
-        return half4(1.0, 1.0, 1.0, alpha);
+        return half4(0, 0, 0, alpha);
 }

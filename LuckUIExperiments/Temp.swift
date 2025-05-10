@@ -2,70 +2,40 @@
 
 import SwiftUI
 
-struct Temp_Button: View, Identifiable {
-    let id: Int
-    
-    var animNS: Namespace.ID
-    
-    @Binding var flags: [Int:Bool]
-    @Binding var expanded: Bool
-    
-    var body: some View {
-        ZStack {
-            Text("Hi!")
-        }
-        .frame(maxWidth: 100, maxHeight: 50)
-        .padding(4)
-        .border(.red)
-        .background() {
-            ZStack {
-                if flags[id] ?? false {
-                    Capsule()
-                        .fill(.accent)
-                        .padding(.horizontal, 4)
-                        .matchedGeometryEffect(id: "button_capsule", in: animNS)
-                }
-            }
-        }
-        .contentShape(.rect)
-        .onTapGesture {
-            withAnimation {
-                flags.forEach { (key: Int, value: Bool) in
-                    flags[key] = false
-                }
-                
-                if flags[id] != nil {
-                    flags[id] = true
-                }
-                
-                expanded = false
-            }
-        }
-        .onAppear() {
-            if flags[id] == nil {
-                flags[id] = false
-            }
-        }
-    }
-}
-
 struct Temp: View {
-    @Namespace var animNS
-    
-    @State var flags: [Int: Bool] = [:]
-    
-    @State var expanded = false
+    @State private var lastLocation: CGSize = .zero
+    @State private var location:     CGSize = .zero
+    var simpleDrag: some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+            .onChanged { value in
+                self.location = CGSize(
+                    width:  lastLocation.width  + value.translation.width,
+                    height: lastLocation.height + (value.translation.height * 0.2)
+                )
+            }
+            .onEnded { value in
+                self.lastLocation = self.location
+            }
+    }
     
     var body: some View {
-        if expanded {
+        MorphContainer {
             HStack {
-                Temp_Button(id: 0, animNS: animNS, flags: $flags, expanded: $expanded)
-                Temp_Button(id: 1, animNS: animNS, flags: $flags, expanded: $expanded)
-                Temp_Button(id: 2, animNS: animNS, flags: $flags, expanded: $expanded)
-                Temp_Button(id: 3, animNS: animNS, flags: $flags, expanded: $expanded)
+                MorphView(shape: Circle()) {
+                    Circle().fill(.clear)
+                }
+                
+                MorphView(shape: Capsule()) {
+                    Capsule().fill(.clear)
+                }
+                .contentShape(.rect)
+                .offset(location)
+                .gesture(simpleDrag)
             }
-        } else {
-            Button("Expand") { expanded = true }
+            .frame(height: 50)
+            .padding()
+        } background: {
+            Color.primary
         }
     }
 }

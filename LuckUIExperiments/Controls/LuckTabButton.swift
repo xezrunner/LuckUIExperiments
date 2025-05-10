@@ -14,15 +14,17 @@ struct LuckTabViewStripCompactButton: View, Identifiable {
         Button(action: action) {
             VStack {
                 Image(systemName: icon)
-                    .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabelIcon", in: animNS)
+                    .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabelIcon\(icon)", in: animNS)
                     .frame(width: 24, height: 24)
                     .padding(12)
             }
-            .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabel", in: animNS, properties: .position)
+            .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabel\(icon)", in: animNS, properties: .position)
         }
         .foregroundStyle(.secondary)
         .background(
-            Capsule().fill(.background)
+            MorphView(shape: Capsule()) {
+                Capsule().fill(.clear)
+            }
                 .matchedGeometryEffect(id: "luckTabViewStripTabButton", in: animNS)
         )
     }
@@ -45,23 +47,23 @@ struct LuckTabViewStripButton: View, Identifiable {
             VStack(spacing: 4) {
                 Image(systemName: icon)
                     .scaleEffect(1.25)
-                    .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabelIcon\(!isSelected ? id.uuidString : "")", in: animNS)
+                    .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabelIcon\(!isSelected ? id.uuidString : icon)", in: animNS)
                     .frame(width: 24, height: 24)
                 
                 Text(title)
                     .font(.footnote)
                     .fixedSize(horizontal: true, vertical: false)
             }
-            .foregroundStyle(isSelected ? .accent : .secondary)
+                        .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabel\(!isSelected ? id.uuidString : icon)", in: animNS, properties: .position)
             
-            .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabel\(!isSelected ? id.uuidString : "")", in: animNS, properties: .position)
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity)
         }
+        .foregroundStyle(isSelected ? .accent : .secondary)
         .background {
             if isSelected {
                 Capsule().fill(.background)
-                    .matchedGeometryEffect(id: "luckTabViewStripTabButton", in: animNS)
+                    .matchedGeometryEffect(id: "luckTabViewStripTabButton\(isSelected ? "" : id.uuidString)", in: animNS)
             }
         }
     }

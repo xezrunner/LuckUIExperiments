@@ -84,32 +84,18 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         // MARK: - Tab strip content
         .safeAreaInset(edge: .bottom) {
             VStack {
-                tabStripTopContent
-                tabStrip
+                if true { debugBox }
+                
+                LuckTabViewStrip(animNS: animNS,
+                                 allTabs: allTabs, selectedTab: _selectionBinding,
+                                 tabStripBehavior: $tabStripBehavior, isExpanded: $isTabStripExpanded,
+                                 searchFieldText: $searchFieldText)
             }
-            .padding(24) // ⚠️
+            .padding(24)
+            // MARK: - Tab strip state animation
+            .animation(.spring(response: 0.4, dampingFraction: 0.83).speed(isSlowmo ? 0.1 : 1), value: isTabStripExpanded)
         }
         
-        // MARK: - Tab strip state animation
-        .animation(.spring(response: 0.4, dampingFraction: 0.83).speed(isSlowmo ? 0.3 : 1), value: isTabStripExpanded)
-    }
-    
-    // TODO: custom
-    var tabStripTopContent: some View {
-        VStack {
-            Text("< top content >")
-                .padding()
-                .background(.gray)
-            
-            if (true) { debugBox }
-        }
-    }
-    
-    var tabStrip: some View {
-        LuckTabViewStrip(animNS: animNS,
-                         allTabs: allTabs, selectedTab: _selectionBinding,
-                         tabStripBehavior: $tabStripBehavior, isExpanded: $isTabStripExpanded,
-                         searchFieldText: $searchFieldText)
     }
     
     var tabStripLegibilityOverlay: some View {
@@ -160,38 +146,67 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
     
     @Binding public var searchFieldText: String
     
-    var body: some View {
+    // TODO: custom
+    var tabStripTopContent: some View {
         VStack {
-            if !isExpanded { collapsedView }
-            else           { expandedView }
+            Text("< top content >")
+                .padding()
+                .background(.gray)
         }
     }
     
+    @State private var collapsedSize: CGSize = .zero
+    @State private var expandedSize:  CGSize = .zero
+    private var tabStripContentHeight: CGFloat { !isExpanded ? collapsedSize.height : expandedSize.height }
+    
+    var body: some View {
+        VStack {
+            tabStripTopContent
+            
+            Color.clear
+                .frame(height: tabStripContentHeight)
+        }
+        .overlay(alignment: .bottom) {
+            VStack {
+                if !isExpanded { collapsedView }
+                else           { expandedView }
+            }
+            // FIXME: This has a slight jerkiness to it, as we get two changes when we expand:
+            .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { expandedSize = $0 })
+        }
+    }
+    
+    @State var collapsedViewContentSize: CGSize = .zero
     var collapsedView: some View {
-        HStack {
-            // MARK: - Compact tab button
-            // TODO: optical alignment: this button should probably be slightly smaller than the search field
-            LuckTabViewStripCompactButton(animNS: animNS, icon: selectedTab.icon) {
-                isExpanded = true
-            }
-            .zIndex(1) // TODO: maybe we should just have our custom button...
-            
-            // MARK: - Search field
-            // TODO: block compact view mode if search isn't requested/available
+        MorphContainer {
             HStack {
-                Image(systemName: "magnifyingglass")
-//                    .imageScale(.small)
-                    .foregroundStyle(.secondary)
+                // MARK: - Compact tab button
+                // TODO: optical alignment: this button should probably be slightly smaller than the search field
+                LuckTabViewStripCompactButton(animNS: animNS, icon: selectedTab.icon) {
+                    isExpanded = true
+                }
+                .zIndex(1) // TODO: maybe we should just have our custom button...
                 
-                TextField("Artists, Songs, Lyrics and More", text: $searchFieldText) // TODO: placeholder parameter
-                    .font(.system(size: 14))
-            }
-            .padding()
-            .background(
-                Capsule().fill(.background)
+                // MARK: - Search field  @Behavior
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    
+                    TextField("Artists, Songs, Lyrics and More", text: $searchFieldText) // TODO: placeholder parameter
+                        .font(.system(size: 14))
+                }
+                .padding()
+                .background{
+                    MorphView(shape: Capsule()) {
+                        Capsule().fill(.clear)
+                    }
                     .matchedGeometryEffect(id: "luckTabViewStripExpandedViewBar", in: animNS)
-            )
-            
+                }
+            }
+            .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { collapsedSize = $0 })
+            .padding(.top)
+        } background: {
+            Rectangle().fill(.background)
         }
     }
     
@@ -209,11 +224,11 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                 // .animation(.smooth, value: selectedTab) // @Behavior  smooth selection indicator position change
             }
         }
-        .padding(6)
-        .background(
+        .padding(4)
+        .background {
             Capsule().fill(.thinMaterial)
                 .matchedGeometryEffect(id: "luckTabViewStripExpandedViewBar", in: animNS)
-        )
+        }
     }
 }
 

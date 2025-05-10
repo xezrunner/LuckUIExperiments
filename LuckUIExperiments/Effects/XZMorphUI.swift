@@ -19,9 +19,7 @@ struct MorphContainer<Content: View, Background: View>: View {
     
     var body: some View {
         content
-            .contentShape(.rect)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        
+            // .frame(maxWidth: .infinity, maxHeight: .infinity)
 #if true // Toggle to debug seeing the mask
             .background {
                 background.mask(morphView)
@@ -32,8 +30,7 @@ struct MorphContainer<Content: View, Background: View>: View {
                 morphView
             }
 #endif
-        
-            .clipped()
+//            .clipped()
     }
     
     @ViewBuilder var morphView: some View {
@@ -140,5 +137,25 @@ extension MorphView where Shape == Content {
         self.blurRadius = blurRadius
         self.content = content()
         self.shape = content()
+    }
+}
+
+#Preview {
+    MorphContainer {
+        HStack {
+            MorphView {
+                Circle()
+            }
+            
+            MorphView {
+                Capsule()
+                    .frame(maxWidth: .infinity)
+                    .offset(x: -12)
+            }
+        }
+        .frame(maxHeight: 50)
+        .padding()
+    } background: {
+        Color.black
     }
 }
