@@ -166,8 +166,44 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
     
     @State private var tabSelectionAnimation: Animation = .spring(response: 0.38, dampingFraction: 0.8)
     
+    var customTopInset: some View {
+        HStack(spacing: 16) {
+            Image(.AlbumArtwork.paradiseagain)
+                .resizable().aspectRatio(contentMode: .fit)
+                .frame(width: 28, height: 28)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            
+            VStack(alignment: .leading) {
+                Text("Calling On")
+                // Text("Swedish House Mafia")
+            }
+            .font(.system(size: 15))
+            
+            Spacer()
+            
+            Group {
+                Button(action: {}) {
+                    Label("Play / resume", systemImage: "play.fill").labelStyle(.iconOnly)
+                }
+                Button(action: {}) {
+                    Label("Next track", systemImage: "forward.fill").labelStyle(.iconOnly)
+                }
+            }
+            .tint(.primary)
+        }
+        .padding(12)
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            Capsule().fill(BackgroundStyle.background)
+        }
+    }
+    
     // TODO: custom
     var tabStripTopContent: some View {
+        #if true
+        customTopInset
+        #else
         VStack {
             Text("< accessory view >")
                 .foregroundStyle(.secondary)
@@ -175,6 +211,7 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                 .frame(maxWidth: .infinity)
                 .background(RoundedRectangle(cornerRadius: 12).fill(.thickMaterial))
         }
+        #endif
     }
     
     @State private var collapsedSize: CGSize = .zero
