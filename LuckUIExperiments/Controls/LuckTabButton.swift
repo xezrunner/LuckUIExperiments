@@ -14,6 +14,7 @@ struct LuckTabViewStripCompactButton: View, Identifiable {
         Button(action: action) {
             VStack {
                 Image(systemName: icon)
+                    .contentTransition(.symbolEffect(.automatic))
                     .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabelIcon\(icon)", in: animNS)
                     .frame(width: 24, height: 24)
                     .padding(12)

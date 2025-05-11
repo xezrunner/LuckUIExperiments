@@ -48,6 +48,8 @@ struct ContentView: View {
             case .search:  "magnifyingglass"
             }
         }
+        
+        var isSearch: Bool { self == .search }
     }
     
     @State var selectedTab: Tabs = .home
