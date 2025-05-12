@@ -79,11 +79,17 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     @State private var isTabStripExpanded: Bool = true
     @State private var searchFieldText: String = ""
     
+    @State private var safeAreaSize: CGSize = .zero
+    
     var body: some View {
         // MARK: - Tab content
         TabView(selection: _selectionBinding) {
             ForEach(allTabs) { tab in
                 tab.view()
+            }
+            // Ensure the content can scroll above the tab bar and its accessories:
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: safeAreaSize.height)
             }
             .toolbarVisibility(.hidden, for: .tabBar)
             .environment(\.luckSearchText, searchFieldText)
@@ -108,8 +114,8 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
             .onChange(of: tabStripBehavior) { oldValue, newValue in
                 isTabStripExpanded = tabStripBehavior != .CompactAsDefault
             }
+            .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { safeAreaSize = $0 })
         }
-        
     }
     
     var tabStripLegibilityOverlay: some View {
@@ -128,7 +134,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     }
     
     // TODO: cleanup
-    @State var showDebugBox = true
+    @State private var showDebugBox = true
     var debugBox: some View {
         VStack {
             HStack {
