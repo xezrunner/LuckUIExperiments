@@ -81,12 +81,25 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     
     @State private var safeAreaSize: CGSize = .zero
     
+    @State private var contentScrollOffset: Double = 0
+    
+    func onContentScrollChanged(offset: Double) {
+        if tabStripBehavior != .CompactOnScroll { return }
+        if selection.isSearch { return }
+        
+        contentScrollOffset = offset
+        isTabStripExpanded = offset <= 0
+    }
+    
     var body: some View {
         // MARK: - Tab content
         TabView(selection: _selectionBinding) {
             ForEach(allTabs) { tab in
                 tab.view()
             }
+            .onScrollGeometryChange(for: Double.self, of: { $0.contentOffset.y }, action: { old, new in
+                onContentScrollChanged(offset: new)
+            })
             // Ensure the content can scroll above the tab bar and its accessories:
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: safeAreaSize.height)
@@ -136,7 +149,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     // TODO: cleanup
     @State private var showDebugBox = true
     var debugBox: some View {
-        VStack {
+        VStack(alignment: .leading) {
             HStack {
                 Text("LuckTabView Debug").font(.footnote).frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(.primary).bold()
@@ -151,6 +164,9 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
                 Picker("Tab View Behavior", selection: $tabStripBehavior) {
                     ForEach(LuckTabViewStripBehavior.allCases) { tab in Text(tab.rawValue) }
                 }
+            }
+            if tabStripBehavior == .CompactOnScroll {
+                Text("Scroll offset (y): \(contentScrollOffset)")
             }
             
             Toggle("Slow Animations (local)", isOn: $isSlowmo)
