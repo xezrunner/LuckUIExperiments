@@ -159,9 +159,9 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
             }
             
             HStack {
-                Text("Tab View Behavior")
+                Text("Tab Strip Behavior")
                 Spacer()
-                Picker("Tab View Behavior", selection: $tabStripBehavior) {
+                Picker("Tab Strip Behavior", selection: $tabStripBehavior) {
                     ForEach(LuckTabViewStripBehavior.allCases) { tab in Text(tab.rawValue) }
                 }
             }
@@ -248,13 +248,14 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
     @State private var collapsedSize: CGSize = .zero
     @State private var expandedSize:  CGSize = .zero
     private var tabStripContentHeight: CGFloat { !isExpanded ? collapsedSize.height : expandedSize.height }
+    @State private var tabStripBottomOffset: CGFloat = 16 // TODO: revise
     
     var body: some View {
         VStack {
             tabStripTopContent
             
             Color.clear
-                .frame(height: tabStripContentHeight)
+                .frame(height: tabStripContentHeight - tabStripBottomOffset)
         }
         .overlay(alignment: .bottom) {
             VStack {
@@ -265,6 +266,7 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                 }
                 else { expandedView }
             }
+            .offset(y: tabStripBottomOffset)
             // FIXME: This has a slight jerkiness to it, as we get two changes when we expand:
             .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { expandedSize = $0 })
         }
