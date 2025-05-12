@@ -31,6 +31,9 @@ struct ContentView: View {
         
         @ViewBuilder func view() -> some View {
             switch self {
+//            case .home: List {
+//                ForEach(0..<50, id: \.self) { it in Text(it.description) }
+//            }
             default: ScrollView {
                 Image(tabScreenshot).resizable().aspectRatio(
                     contentMode: .fill
