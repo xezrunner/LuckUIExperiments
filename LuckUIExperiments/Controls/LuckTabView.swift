@@ -93,7 +93,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         // MARK: - Tab strip content
         .safeAreaInset(edge: .bottom) {
             VStack {
-                if true { debugBox }
+                if showDebugBox { debugBox }
                 
                 LuckTabViewStrip(animNS: animNS,
                                  allTabs: allTabs, selectedTab: _selectionBinding,
@@ -127,11 +127,17 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         .frame(maxHeight: 32)
     }
     
+    // TODO: cleanup
+    @State var showDebugBox = true
     var debugBox: some View {
         VStack {
-            Text("LuckTabView Debug").font(.footnote).frame(maxWidth: .infinity, alignment: .leading)
-                .foregroundStyle(.primary).bold()
-                .opacity(0.76)
+            HStack {
+                Text("LuckTabView Debug").font(.footnote).frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(.primary).bold()
+                    .opacity(0.76)
+                
+                Toggle(isOn: $showDebugBox, label: {})
+            }
             
             HStack {
                 Text("Tab View Behavior")
