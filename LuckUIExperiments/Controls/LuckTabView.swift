@@ -87,26 +87,26 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
             }
             .toolbarVisibility(.hidden, for: .tabBar)
             .environment(\.luckSearchText, searchFieldText)
-            // MARK: - Tab strip legibility overlay
-            .overlay(alignment: .bottom) { tabStripLegibilityOverlay }
-            // MARK: - Tab strip content
-            .safeAreaInset(edge: .bottom) {
-                VStack {
-                    if showDebugBox { debugBox }
-                    
-                    LuckTabViewStrip(animNS: animNS,
-                                     allTabs: allTabs, selectedTab: _selectionBinding,
-                                     tabStripBehavior: $tabStripBehavior, isExpanded: $isTabStripExpanded,
-                                     searchFieldText: $searchFieldText)
-                    .environment(\.luckIsSlowmo, isSlowmo)
-                }
-                .padding(24)
-                // MARK: - Tab strip state animation
-                .animation(.spring(response: 0.4, dampingFraction: 0.83).speed(isSlowmo ? 0.1 : 1), value: isTabStripExpanded)
+        }
+        // MARK: - Tab strip legibility overlay
+        .overlay(alignment: .bottom) { tabStripLegibilityOverlay }
+        // MARK: - Tab strip content
+        .safeAreaInset(edge: .bottom) {
+            VStack {
+                if showDebugBox { debugBox }
                 
-                .onChange(of: tabStripBehavior) { oldValue, newValue in
-                    isTabStripExpanded = tabStripBehavior != .CompactAsDefault
-                }
+                LuckTabViewStrip(animNS: animNS,
+                                 allTabs: allTabs, selectedTab: _selectionBinding,
+                                 tabStripBehavior: $tabStripBehavior, isExpanded: $isTabStripExpanded,
+                                 searchFieldText: $searchFieldText)
+                .environment(\.luckIsSlowmo, isSlowmo)
+            }
+            .padding(24)
+            // MARK: - Tab strip state animation
+            .animation(.spring(response: 0.4, dampingFraction: 0.83).speed(isSlowmo ? 0.1 : 1), value: isTabStripExpanded)
+            
+            .onChange(of: tabStripBehavior) { oldValue, newValue in
+                isTabStripExpanded = tabStripBehavior != .CompactAsDefault
             }
         }
         
