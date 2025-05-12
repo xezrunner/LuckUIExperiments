@@ -2,7 +2,7 @@
 
 import SwiftUI
 
-protocol LuckNavigationDestination: CaseIterable, Identifiable, Equatable, RawRepresentable
+protocol LuckNavigationDestination: CaseIterable, Identifiable, Hashable, Equatable, RawRepresentable
 where AllCases == Array<Self>, RawValue: StringProtocol {
     var id: Self { get }
     
@@ -81,9 +81,12 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
     
     var body: some View {
         // MARK: - Tab content
-        Group {
-            selection.view()
-                .environment(\.luckSearchText, searchFieldText)
+        TabView(selection: _selectionBinding) {
+            ForEach(allTabs) { tab in
+                tab.view()
+            }
+            .toolbarVisibility(.hidden, for: .tabBar)
+            .environment(\.luckSearchText, searchFieldText)
         }
         // MARK: - Tab strip legibility overlay
         .overlay(alignment: .bottom) { tabStripLegibilityOverlay }
