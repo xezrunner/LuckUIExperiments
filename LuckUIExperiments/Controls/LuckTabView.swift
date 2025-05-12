@@ -242,8 +242,12 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
         }
         .overlay(alignment: .bottom) {
             VStack {
-                if !isExpanded { collapsedView }
-                else           { expandedView }
+                if !isExpanded {
+                    collapsedView
+                        .padding(.horizontal, -24) // HACK: to prevent clipping during the collapse animation  @PreventClippingOnCollapse
+//                        .border(.red)
+                }
+                else { expandedView }
             }
             // FIXME: This has a slight jerkiness to it, as we get two changes when we expand:
             .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { expandedSize = $0 })
@@ -291,6 +295,7 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
             }
             .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { collapsedSize = $0 })
             .padding(.top)
+            .padding(.horizontal, 24) // @PreventClippingOnCollapse
         } background: {
             Rectangle().fill(.background)
         }
