@@ -42,6 +42,10 @@ public enum LuckTabViewStripBehavior: String, CaseIterable, Identifiable, Equata
     public static var `default`: Self { CompactOnSearch }
 }
 
+// MARK: - TODO:
+// Adjust animation timings: collapse animation looks a little too fast, can barely see the merging
+// Fun animations based on latest concept: https://www.youtube.com/watch?v=C5OQDhcqKjo
+
 struct LuckTabView<Tab: LuckNavigationDestination>: View {
     @Namespace private var animNS
     
