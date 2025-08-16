@@ -11,9 +11,18 @@ enum SDFShapeType: Equatable {
     
     var rawValue: RawValue {
         switch self {
-        case .circle: 0
-        case .capsule: 1
-        case .roundedRectangle: 2
+            case .circle: 0
+            case .capsule: 1
+            case .roundedRectangle: 2
+        }
+    }
+    
+    static func name(`for`: RawValue, roundedRectangleRadius: Float = 0) -> String { // for debugging
+        switch `for` {
+            case 0:  "circle (0)"
+            case 1:  "capsule (1)"
+            case 2:  "roundedRectangle (2)"
+            default: "(???)"
         }
     }
 }
@@ -68,12 +77,14 @@ struct SDFMorphableViewModifier: ViewModifier {
 }
 
 struct SDFMorphContainer<Content: View, Background: View>: View {
-    @State private var entities: [SDFMorphableEntity] = []
+    @State internal var entities: [SDFMorphableEntity] = []
     
     @ViewBuilder var content:    () -> Content
     @ViewBuilder var background: () -> Background
     
-    @State private var contentGeoInfo: CGRect = .zero
+    @State internal var contentGeoInfo: CGRect = .zero
+    
+    @State internal var showDebug = false
     
     var body: some View {
         ZStack {
@@ -91,28 +102,18 @@ struct SDFMorphContainer<Content: View, Background: View>: View {
                         .layerEffect(
                             ShaderLibrary.metaball_sdf(.float2(contentGeoInfo.size.width, contentGeoInfo.size.height), .float(Float(entities.count)),
                                                        .data(Data(bytes: entities, count: entities.count * MemoryLayout<SDFMorphableEntity>.stride)),
-                                                      )
+                            )
                             , maxSampleOffset: .zero)
                 }
         }
-        .safeAreaInset(edge: .bottom) {
-            VStack(alignment: .leading) {
-                Group {
-                    Text("Collected entities (\(entities.count)):")
-                    ForEach(0..<entities.count, id: \.self) { index in
-                        let it = entities[index]
-                        Text("  - \(index): pos: \(it.position.debugDescription)  size: \(it.size.debugDescription)")
-                    }
-                    
-                    Divider()
-                    
-                    Text("SDFMorphableEntity stride: \(MemoryLayout<SDFMorphableEntity>.stride)")
-                }
-                .monospaced()
-                .font(.system(size: 14))
-            }
-            .padding()
+#if DEBUG
+        .popover(isPresented: $showDebug, arrowEdge: .bottom) {
+            debugView
+                .presentationBackground(.gray.opacity(0.3))
+                .presentationDetents([.fraction(0.99)])
         }
+        .onLongPressGesture(minimumDuration: 2) { showDebug.toggle() }
+#endif
     }
 }
 
@@ -143,13 +144,14 @@ extension View {
 }
 
 #Preview {
-    @Previewable @State var xOffset: CGFloat = 0
+    @Previewable @State var offset: CGFloat = 0
+    @Previewable @State var color : Color = .red
     
     VStack {
         HStack {
             Circle().fill(.clear)
                 .morphable(shape: .circle)
-                .offset(x: xOffset)
+                .offset(x: offset)
             
             Rectangle().fill(.clear)
                 .morphable(shape: .roundedRectangle(radius: 8))
@@ -157,15 +159,22 @@ extension View {
         
         Circle().fill(.clear)
             .morphable(shape: .circle)
-            .offset(y: -xOffset)
+            .offset(y: -offset)
     }
     .frame(maxHeight: 60)
-    .padding()
+    .padding(64)
+    .border(color)
     .opacity(0.3)
     .safeAreaInset(edge: .bottom) {
-        Slider(value: $xOffset, in: -100...100)
-            .padding()
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Testing Offsets: \(offset)")
+            Slider(value: $offset, in: -200...200)
+            
+            ColorPicker("Color", selection: $color)
+        }
+        .padding()
+        .monospaced()
     }
-    .morphContainer(background: .red)
+    .morphContainer(background: color)
 //    .background(.green)
 }
