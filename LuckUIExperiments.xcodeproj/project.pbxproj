@@ -19,6 +19,8 @@
 		215F35612DA7388600122F06 /* LuckUIExperimentsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215F355E2DA7388600122F06 /* LuckUIExperimentsApp.swift */; };
 		215F35622DA7388600122F06 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 215F355C2DA7388600122F06 /* Assets.xcassets */; };
 		21E37DCA2DA88A0F0002997C /* VariableBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21E37DC92DA88A0F0002997C /* VariableBlur.swift */; };
+		21FEB7572E510A6B00C41EF2 /* metaball_sdf_shapes.h in Sources */ = {isa = PBXBuildFile; fileRef = 21FEB7562E510A6600C41EF2 /* metaball_sdf_shapes.h */; };
+		21FEB7592E510AB100C41EF2 /* metaball_sdf_common.h in Sources */ = {isa = PBXBuildFile; fileRef = 21FEB7582E510AA900C41EF2 /* metaball_sdf_common.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,6 +37,8 @@
 		215F355D2DA7388600122F06 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		215F355E2DA7388600122F06 /* LuckUIExperimentsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LuckUIExperimentsApp.swift; sourceTree = "<group>"; };
 		21E37DC92DA88A0F0002997C /* VariableBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VariableBlur.swift; sourceTree = "<group>"; };
+		21FEB7562E510A6600C41EF2 /* metaball_sdf_shapes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = metaball_sdf_shapes.h; sourceTree = "<group>"; };
+		21FEB7582E510AA900C41EF2 /* metaball_sdf_common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = metaball_sdf_common.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -118,9 +122,19 @@
 			isa = PBXGroup;
 			children = (
 				215C68A22DB04E70005F1F6A /* metaball_blurred.metal */,
-				213F7D792E509A1A00369D41 /* metaball_sdf.metal */,
+				21FEB75A2E510B9000C41EF2 /* SDF_morph */,
 			);
 			path = Shaders;
+			sourceTree = "<group>";
+		};
+		21FEB75A2E510B9000C41EF2 /* SDF_morph */ = {
+			isa = PBXGroup;
+			children = (
+				21FEB7582E510AA900C41EF2 /* metaball_sdf_common.h */,
+				21FEB7562E510A6600C41EF2 /* metaball_sdf_shapes.h */,
+				213F7D792E509A1A00369D41 /* metaball_sdf.metal */,
+			);
+			path = SDF_morph;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -203,11 +217,13 @@
 				215C68A32DB04E73005F1F6A /* metaball_blurred.metal in Sources */,
 				213F7D7C2E509A9900369D41 /* XZMorphUI_SDF.swift in Sources */,
 				212A4DAB2DA8B10100B38DF3 /* LuckTabView.swift in Sources */,
+				21FEB7592E510AB100C41EF2 /* metaball_sdf_common.h in Sources */,
 				213F7D7A2E509A1A00369D41 /* metaball_sdf.metal in Sources */,
 				215F35612DA7388600122F06 /* LuckUIExperimentsApp.swift in Sources */,
 				21E37DCA2DA88A0F0002997C /* VariableBlur.swift in Sources */,
 				210C1FCD2DAAABA1008DB045 /* LibraryTabView.swift in Sources */,
 				213F7D782E509A0E00369D41 /* Temp.swift in Sources */,
+				21FEB7572E510A6B00C41EF2 /* metaball_sdf_shapes.h in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

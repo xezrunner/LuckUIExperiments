@@ -2,15 +2,47 @@
 
 import SwiftUI
 
+enum SDFShapeType: Equatable {
+    typealias RawValue = Int8
+    
+    case circle
+    case capsule
+    case roundedRectangle(radius: Float)
+    
+    var rawValue: RawValue {
+        switch self {
+        case .circle: 0
+        case .capsule: 1
+        case .roundedRectangle: 2
+        }
+    }
+}
+
 struct SDFMorphableEntity: Equatable {
-    var position: SIMD2<Float>
-    var size:     SIMD2<Float>
+    var shapeType: SDFShapeType.RawValue
+    
+    var position:  SIMD2<Float>
+    var size:      SIMD2<Float>
+    var roundedRectangleRadius: Float
+    
+    var intensity: Float
 }
 extension SDFMorphableEntity {
-    init(position: CGPoint, size: CGSize) {
+    init(shapeType: SDFShapeType, position: CGPoint, size: CGSize, intensity: Float) {
+        self.shapeType = shapeType.rawValue
+        
         self.position = .init(Float(position.x), Float(position.y))
         self.size = .init(Float(size.width), Float(size.height))
+        
+        switch shapeType {
+            case .roundedRectangle(let radius): self.roundedRectangleRadius = radius
+            default:                            self.roundedRectangleRadius = 0
+        }
+        
+        self.intensity = intensity
     }
+    
+    internal static var `default` = SDFMorphableEntity(shapeType: .circle, position: .zero, size: .zero, intensity: 0)
 }
 
 struct SDFMorphableInfoPrefKey: PreferenceKey {
@@ -19,20 +51,23 @@ struct SDFMorphableInfoPrefKey: PreferenceKey {
 }
 
 struct SDFMorphableViewModifier: ViewModifier {
-    @State var entity: SDFMorphableEntity = .init(position: .zero, size: .zero)
+    public static let DEFAULT_INTENSITY: Float = 15
+    
+    @State var shape: SDFShapeType
+    @State var intensity: Float = DEFAULT_INTENSITY
+    
+    @State private var entity: SDFMorphableEntity = .default
     
     func body(content: Content) -> some View {
         content
             .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named("SDFMorphContainer")) }, action: {
-                entity = .init(position: $0.origin, size: $0.size)
+                entity = .init(shapeType: shape, position: $0.origin, size: $0.size, intensity: intensity)
             })
             .preference(key: SDFMorphableInfoPrefKey.self, value: [entity])
     }
 }
 
 struct SDFMorphContainer<Content: View, Background: View>: View {
-    @State private var progress = 0.0
-    
     @State private var entities: [SDFMorphableEntity] = []
     
     @ViewBuilder var content:    () -> Content
@@ -75,50 +110,62 @@ struct SDFMorphContainer<Content: View, Background: View>: View {
                 }
                 .monospaced()
                 .font(.system(size: 14))
-                
-                Slider(value: $progress, in: -100...100)
             }
             .padding()
         }
     }
 }
 
-extension SDFMorphContainer where Background == _ShapeView<Rectangle, BackgroundStyle> {
-    init(@ViewBuilder content: @escaping () -> Content) {
+extension SDFMorphContainer {
+    init(@ViewBuilder content: @escaping () -> Content) where Background == _ShapeView<Rectangle, BackgroundStyle> {
         self.content = content
         self.background = { Rectangle().fill(.background) }
+    }
+    
+    init(@ViewBuilder content: @escaping () -> Content, background: Color) where Background == Color {
+        self.content = content
+        self.background = { background }
     }
 }
 
 extension View {
-    func morphable() -> some View {
-        self.modifier(SDFMorphableViewModifier())
+    func morphable(shape: SDFShapeType, intensity: Float = SDFMorphableViewModifier.DEFAULT_INTENSITY) -> some View {
+        self.modifier(SDFMorphableViewModifier(shape: shape, intensity: intensity))
     }
     
-    func morphContainer() -> some View {
-        SDFMorphContainer {
-            self
-        }
+    func morphContainer<Background: View>(@ViewBuilder background: @escaping () -> Background) -> some View {
+        SDFMorphContainer(content: { self }, background: background)
+    }
+    
+    func morphContainer(background: Color) -> some View {
+        SDFMorphContainer(content: { self }, background: background)
     }
 }
 
 #Preview {
     @Previewable @State var xOffset: CGFloat = 0
     
-    HStack {
-        Circle().fill(.red)
-            .morphable()
-            .offset(x: xOffset)
+    VStack {
+        HStack {
+            Circle().fill(.clear)
+                .morphable(shape: .circle)
+                .offset(x: xOffset)
+            
+            Rectangle().fill(.clear)
+                .morphable(shape: .roundedRectangle(radius: 8))
+        }
         
-        Circle().fill(.red)
-            .morphable()
+        Circle().fill(.clear)
+            .morphable(shape: .circle)
+            .offset(y: -xOffset)
     }
-    .opacity(0.3)
     .frame(maxHeight: 60)
+    .padding()
+    .opacity(0.3)
     .safeAreaInset(edge: .bottom) {
         Slider(value: $xOffset, in: -100...100)
             .padding()
     }
-    .morphContainer()
-    .background(.green)
+    .morphContainer(background: .red)
+//    .background(.green)
 }
