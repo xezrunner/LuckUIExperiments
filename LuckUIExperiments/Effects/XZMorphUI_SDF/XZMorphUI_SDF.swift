@@ -134,6 +134,10 @@ extension View {
         self.modifier(SDFMorphableViewModifier(shape: shape, intensity: intensity))
     }
     
+    func morphContainer() -> some View {
+        SDFMorphContainer(content: { self })
+    }
+    
     func morphContainer<Background: View>(@ViewBuilder background: @escaping () -> Background) -> some View {
         SDFMorphContainer(content: { self }, background: background)
     }
