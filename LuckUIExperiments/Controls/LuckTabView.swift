@@ -251,27 +251,23 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
     }
     
     @State private var collapsedSize: CGSize = .zero
-    @State private var expandedSize:  CGSize = .zero
-    private var tabStripContentHeight: CGFloat { !isExpanded ? collapsedSize.height : expandedSize.height }
+    @State private var expandedViewGeo:  CGRect = .zero
+    private var tabStripContentHeight: CGFloat { !isExpanded ? collapsedSize.height : expandedViewGeo.height }
     @State private var tabStripBottomOffset: CGFloat = 16 // TODO: revise
     
     var body: some View {
         VStack {
             tabStripTopContent
             
-            Color.clear
+            Color.clear // Tab strip placeholder
                 .frame(height: tabStripContentHeight - tabStripBottomOffset)
         }
+        .animation(tabStripExpandAnimation, value: isExpanded)
         .overlay(alignment: .bottom) {
             ZStack {
-                collapsedView
-                    .padding(.horizontal, -24) // HACK: to prevent clipping during the collapse animation  @PreventClippingOnCollapse
-
-                expandedView
+                tabStripView
             }
             .offset(y: tabStripBottomOffset)
-            // FIXME: This has a slight jerkiness to it, as we get two changes when we expand:
-            .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { expandedSize = $0 })
             .animation(tabStripExpandAnimation.speed(isSlowmo ? 0.1 : 1), value: isExpanded)
         }
     }
@@ -283,40 +279,114 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
         return selectedTab.icon
     }
     
-    struct CollapsedViewButtonKFAnimProperties {
-        var offset: CGFloat = 0
-        var scale:  CGFloat = 1
+    struct KFAnimProperties {
+        var offset: CGPoint = .init() // This is a CGSize because SwiftUI gives us origins in CGSize
+        var scale:  CGPoint = .init(x: 1, y: 1)
     }
     
-    // HACK: this is for the .keyframeAnimator in collapsedView, which already receives the new isExpanded value for initialValue:, meaning that
+    // HACK: this is for the .keyframeAnimator, which already receives the new isExpanded value for initialValue:, meaning that
     // we can't really set up a proper bi-directional animation without this. This just stores the previous value for isExpanded whenever it changes.
-    // Importantly, it starts nil so that it plays the animation the first time around (sigh...)
-    @State var collapsedView_prevIsExpanded: Bool?
+    // Importantly, it starts nilm so that it plays the animation the first time around (sigh...)
+    @State var _prevIsExpanded: Bool?
+    var prevIsExpanded: Bool { _prevIsExpanded ?? isExpanded }
     
-    var collapsedView: some View {
+    var tabStripView: some View {
+        return ZStack(alignment: .bottom) {
+            compactView
+                .opacity(!isExpanded ? 1 : 0)
+            
+            tabStripMorphingPlatter
+            
+            expandedView
+                .opacity(isExpanded ? 1 : 0)
+        }
+        .padding(.horizontal, 24) // HACK: to prevent clipping during the compact view collapse animation  @PreventClippingOnCollapse
+        .morphContainer()
+        .padding(.horizontal, -24) // @PreventClippingOnCollapse
+        
+        .onChange(of: isExpanded) { oldValue, newValue in _prevIsExpanded = oldValue }
+    }
+    
+    var tabStripMorphingPlatter: some View {
+        ZStack { // TODO: move to .overlay?
+            // Search bar / Expanded view container:
+#if true
+            let platterInitialKF: KFAnimProperties = .init(
+                offset: .init(x: !prevIsExpanded ? compactViewSearchBarGeo.origin.x : 0,                  y: !prevIsExpanded ? compactViewSearchBarGeo.origin.y : 0),
+                scale:  .init(x: !prevIsExpanded ? compactViewSearchBarGeo.width : expandedViewGeo.width, y: !prevIsExpanded ? compactViewSearchBarGeo.height : expandedViewGeo.height)
+            )
+            
+            let platterKFOffset: CGPoint = .init(x: !isExpanded ? compactViewSearchBarGeo.origin.x : expandedViewGeo.origin.x, y: !isExpanded ? compactViewSearchBarGeo.origin.y : expandedViewGeo.origin.y)
+            let platterKFScale:  CGPoint = .init(x: !isExpanded ? compactViewSearchBarGeo.width    : expandedViewGeo.width,    y: !isExpanded ? compactViewSearchBarGeo.height   : expandedViewGeo.height)
+            
+            Capsule().fill(.clear)
+                .morphable(shape: .capsule, intensity: 5)
+                .keyframeAnimator(initialValue: platterInitialKF, trigger: _prevIsExpanded) { content, props in
+                    content
+                        .frame(width: props.scale.x, height: props.scale.y)
+                        .offset(x: props.offset.x, y: props.offset.y)
+                } keyframes: { props in
+                    KeyframeTrack(\.offset) {
+                        SpringKeyframe(.init(x: platterInitialKF.offset.x + 20, y: platterInitialKF.offset.y), duration: isExpanded ? 0.15 : 0, spring: .bouncy)
+                        SpringKeyframe(.init(x: isExpanded ? -40 : 40, y: 0), duration: 0.1, spring: .bouncy)
+                        SpringKeyframe(platterKFOffset, spring: .bouncy)
+                    }
+                    KeyframeTrack(\.scale) {
+                        SpringKeyframe(platterInitialKF.scale, duration: isExpanded ? 0.2 : 0, spring: .bouncy)
+                        SpringKeyframe(platterKFScale, spring: .bouncy)
+                    }
+                }
+#else
+            Capsule().fill(.clear)
+                .frame(width: compactViewSearchBarGeo.width, height: compactViewSearchBarGeo.height)
+                .morphable(shape: .capsule, intensity: 5)
+                .offset(x: compactViewSearchBarGeo.origin.x, y: compactViewSearchBarGeo.origin.y)
+#endif
+            
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    @State var compactViewSearchBarGeo: CGRect = .zero
+    var compactView: some View {
+        // Tabs button animation props:
+        let tabsButtonXOffsetTarget: CGFloat = 120
+        let tabsButtonScaleTarget:   CGFloat = 0.35
+        let tabsButtonKFOffset:      CGPoint = .init(x: !isExpanded ? 0 : tabsButtonXOffsetTarget, y: 0)
+        let tabsButtonKFScale:       CGPoint = .init(x: !isExpanded ? 1 : tabsButtonScaleTarget,   y: !isExpanded ? 1 : tabsButtonScaleTarget)
+        
+        let tabsButtonInitialKF: KFAnimProperties = .init(
+            offset: .init(x: !prevIsExpanded ? 0 : tabsButtonXOffsetTarget, y: 0),
+            scale:  .init(x: !prevIsExpanded ? 1 : tabsButtonScaleTarget,   y: !prevIsExpanded ? 1 : tabsButtonScaleTarget)
+        )
+        
+        // Search bar animation props:
+        let searchBarPaddingTarget: CGFloat = 20.0
+        let searchBarKFPadding:     CGPoint = .init(x: !isExpanded ? 0 : searchBarPaddingTarget, y: 0)
+        
+        let searchBarInitialKF: KFAnimProperties = .init(
+            offset: .init(x: !prevIsExpanded ? 0 : searchBarPaddingTarget, y: 0)
+        )
         
         return HStack {
-            // MARK: - Compact tab button
             // TODO: optical alignment: this button should probably be slightly smaller than the search field
             LuckTabViewStripCompactButton(animNS: animNS, icon: collapsedViewTabsIcon) {
                 searchFieldFocusState = false
                 isExpanded = true
             }
             .morphable(shape: .circle)
-            .keyframeAnimator(initialValue: CollapsedViewButtonKFAnimProperties(offset: collapsedView_prevIsExpanded ?? isExpanded ? 50 : 0), trigger: collapsedView_prevIsExpanded) { content, props in
+            .keyframeAnimator(initialValue: tabsButtonInitialKF, trigger: _prevIsExpanded) { content, props in
                 content
-                    .offset(x: props.offset)
-                    .scaleEffect(props.scale)
+                    .offset     (x: props.offset.x, y: props.offset.y)
+                    .scaleEffect(x: props.scale.x,  y: props.scale.y)
             } keyframes: { props in
                 KeyframeTrack(\.offset) {
-                    SpringKeyframe(isExpanded ? 65.0 : 0.0, spring: .bouncy)
+                    SpringKeyframe(tabsButtonKFOffset, spring: .bouncy)
                 }
                 KeyframeTrack(\.scale) {
-                    SpringKeyframe(!isExpanded ? 1.0 : 0.7, spring: .bouncy)
+                    SpringKeyframe(tabsButtonKFScale, spring: .bouncy)
                 }
             }
-            .onChange(of: isExpanded, { oldValue, newValue in collapsedView_prevIsExpanded = oldValue })
-            .zIndex(1) // TODO: maybe we should just have our custom button...
             
             // MARK: - Search field  @Behavior
             HStack {
@@ -332,18 +402,53 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                     }
             }
             .padding()
-            .background{
-                Capsule()
-                    .fill(.clear)
-                    .morphable(shape: .capsule, intensity: 5)
-                    .matchedGeometryEffect(id: "luckTabViewStripExpandedViewBar", in: animNS, isSource: !isExpanded)
+            .keyframeAnimator(initialValue: searchBarInitialKF, trigger: _prevIsExpanded, content: { content, props in
+                content
+                    .padding(.leading, props.offset.x)
+                    .scaleEffect(x: props.scale.x, y: props.scale.y)
+            }, keyframes: { props in
+                KeyframeTrack(\.offset) {
+                    SpringKeyframe(searchBarKFPadding, spring: .bouncy)
+                }
+                KeyframeTrack(\.scale) {
+                    SpringKeyframe(.init(x: isExpanded ? 0.6 : 1, y: isExpanded ? 0.8 : 1), spring: .bouncy)
+                }
+            })
+            .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named("luckTabStripCompactView")) }, action: { compactViewSearchBarGeo = $0 })
+        }
+        .blur(radius: !isExpanded ? 0 : 20)
+        .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { collapsedSize = $0 })
+        .coordinateSpace(name: "luckTabStripCompactView")
+        .padding(.top)
+    }
+    
+    var expandedView: some View {
+        HStack(spacing: 0) {
+            let tabs = allTabs
+            // Do not show the search tab when it isn't necessary (based on behavior mode):
+            // Exception in CompactAsDefault mode to show it is When the search box is focused and we are on the search tab.
+                .filter { tabStripBehavior != .CompactAsDefault || selectedTab.isSearch || !$0.isSearch }
+            
+            // TODO: animate indivudual tabs on isExpanded!
+            ForEach(tabs) { tab in
+                LuckTabViewStripButton(
+                    animNS: animNS,
+                    isSelected: tab == selectedTab,
+                    icon: tab.icon, title: tab.rawValue as! String,
+                    action: { stripSelectTabAction(tab: tab) }
+                )
+                .onChange(of: selectedTab, onSelectedTabChanged)
+                // @Behavior  smooth selection indicator position change when not collapsing:
+                // FIXME: The SW keyboard causes some weird visuals as collapsedView sticks to the top
+                .animation(tabStripBehavior != .CompactAsDefault && !searchFieldFocusState ? tabSelectionAnimation.speed(isSlowmo ? 0.1 : 1) : nil, value: selectedTab)
             }
         }
-        .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { collapsedSize = $0 })
-        .padding(.top)
-        .padding(.horizontal, 24) // @PreventClippingOnCollapse
-        .frame(maxWidth: .infinity)
-        .morphContainer()
+        .scaleEffect(isExpanded ? 1 : 0.3)
+        .opacity(isExpanded ? 1 : 0)
+        .blur(radius: isExpanded ? 0 : 20)
+        .padding(4)
+        // FIXME: This has a slight jerkiness to it, as we get two changes when we expand:
+        .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .local) }, action: { expandedViewGeo = $0 })
     }
     
     func stripSelectTabAction(tab: Tab) {
@@ -368,38 +473,6 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
         // Dismiss when selecting search tab, unfocus search field otherwise:
         if selectedTab.isSearch { isExpanded = false }
         else                    { searchFieldFocusState = false }
-    }
-    
-    var expandedView: some View {
-        HStack(spacing: 0) {
-            let tabs = allTabs
-                // Do not show the search tab when it isn't necessary (based on behavior mode):
-                // Exception in CompactAsDefault mode to show it is When the search box is focused and we are on the search tab.
-                .filter { tabStripBehavior != .CompactAsDefault || selectedTab.isSearch || !$0.isSearch }
-            
-            // TODO: animate indivudual tabs on isExpanded!
-            ForEach(tabs) { tab in
-                LuckTabViewStripButton(
-                    animNS: animNS,
-                    isSelected: tab == selectedTab,
-                    icon: tab.icon, title: tab.rawValue as! String,
-                    action: { stripSelectTabAction(tab: tab) }
-                )
-                .onChange(of: selectedTab, onSelectedTabChanged)
-                // @Behavior  smooth selection indicator position change when not collapsing:
-                // FIXME: The SW keyboard causes some weird visuals as collapsedView sticks to the top
-                .animation(tabStripBehavior != .CompactAsDefault && !searchFieldFocusState ? tabSelectionAnimation.speed(isSlowmo ? 0.1 : 1) : nil, value: selectedTab)
-            }
-        }
-        .padding(4)
-        .background {
-            Capsule()
-                .fill(.thinMaterial)
-                .stroke(lightBorder, lineWidth: 1)
-                .matchedGeometryEffect(id: "luckTabViewStripExpandedViewBar", in: animNS, properties: .frame, isSource: isExpanded)
-        }
-        .opacity(isExpanded ? 1 : 0)
-        .allowsHitTesting(isExpanded)
     }
     
     // TODO: move away!
