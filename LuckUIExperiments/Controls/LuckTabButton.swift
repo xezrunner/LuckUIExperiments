@@ -26,7 +26,7 @@ struct LuckTabViewStripCompactButton: View, Identifiable {
             MorphView(shape: Capsule()) {
                 Capsule().fill(.clear)
             }
-                .matchedGeometryEffect(id: "luckTabViewStripTabButton", in: animNS)
+//                .matchedGeometryEffect(id: "luckTabViewStripTabButton", in: animNS)
         )
     }
 }
@@ -48,14 +48,14 @@ struct LuckTabViewStripButton: View, Identifiable {
             VStack(spacing: 4) {
                 Image(systemName: icon)
                     .scaleEffect(1.25)
-                    .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabelIcon\(!isSelected ? id.uuidString : icon)", in: animNS)
+//                    .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabelIcon\(!isSelected ? id.uuidString : icon)", in: animNS)
                     .frame(width: 24, height: 24)
                 
                 Text(title)
                     .font(.footnote)
                     .fixedSize(horizontal: true, vertical: false)
             }
-                        .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabel\(!isSelected ? id.uuidString : icon)", in: animNS, properties: .position)
+//                        .matchedGeometryEffect(id: "luckTabViewStripTabButtonLabel\(!isSelected ? id.uuidString : icon)", in: animNS, properties: .position)
             
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity)
@@ -64,7 +64,7 @@ struct LuckTabViewStripButton: View, Identifiable {
         .background {
             if isSelected {
                 Capsule().fill(.background)
-                    .matchedGeometryEffect(id: "luckTabViewStripTabButton\(isSelected ? "" : id.uuidString)", in: animNS)
+//                    .matchedGeometryEffect(id: "luckTabViewStripTabButton\(isSelected ? "" : id.uuidString)", in: animNS)
             }
         }
     }

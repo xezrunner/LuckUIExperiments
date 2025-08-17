@@ -92,6 +92,9 @@ struct SDFMorphContainer<Content: View, Background: View>: View {
                 .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .local) }, action: { contentGeoInfo = $0 })
                 .onPreferenceChange(SDFMorphableInfoPrefKey.self) { newValue in
                     entities = newValue
+//                    print("-----")
+//                    print(entities)
+//                    print("-----\n")
                 }
                 .coordinateSpace(name: "SDFMorphContainer")
         }

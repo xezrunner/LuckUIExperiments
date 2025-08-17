@@ -80,7 +80,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         if tabStripBehavior == .CompactAsDefault { isTabStripExpanded = false }
     }
     
-    @State private var isTabStripExpanded: Bool = true
+    @State private var isTabStripExpanded: Bool = false
     @State private var searchFieldText: String = ""
     
     @State private var safeAreaSize: CGSize = .zero
@@ -126,7 +126,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
             }
             .padding(24)
             // MARK: - Tab strip state animation
-            .animation(.spring(response: 0.4, dampingFraction: 0.83).speed(isSlowmo ? 0.1 : 1), value: isTabStripExpanded)
+//            .animation(.spring(response: 0.4, dampingFraction: 0.83).speed(isSlowmo ? 0.1 : 1), value: isTabStripExpanded)
             
             .onChange(of: tabStripBehavior) { oldValue, newValue in
                 isTabStripExpanded = tabStripBehavior != .CompactAsDefault
@@ -200,6 +200,7 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
     @FocusState private var searchFieldFocusState: Bool
     
     @State private var tabSelectionAnimation: Animation = .spring(response: 0.38, dampingFraction: 0.8)
+    @State private var tabStripExpandAnimation: Animation = .spring(response: 0.4, dampingFraction: 0.83)
     
     var customTopInset: some View {
         HStack(spacing: 16) {
@@ -262,17 +263,16 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                 .frame(height: tabStripContentHeight - tabStripBottomOffset)
         }
         .overlay(alignment: .bottom) {
-            VStack {
-                if !isExpanded {
-                    collapsedView
-                        .padding(.horizontal, -24) // HACK: to prevent clipping during the collapse animation  @PreventClippingOnCollapse
-//                        .border(.red)
-                }
-                else { expandedView }
+            ZStack {
+                collapsedView
+                    .padding(.horizontal, -24) // HACK: to prevent clipping during the collapse animation  @PreventClippingOnCollapse
+
+                expandedView
             }
             .offset(y: tabStripBottomOffset)
             // FIXME: This has a slight jerkiness to it, as we get two changes when we expand:
             .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { expandedSize = $0 })
+            .animation(tabStripExpandAnimation.speed(isSlowmo ? 0.1 : 1), value: isExpanded)
         }
     }
     
@@ -283,44 +283,67 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
         return selectedTab.icon
     }
     
+    struct CollapsedViewButtonKFAnimProperties {
+        var offset: CGFloat = 0
+        var scale:  CGFloat = 1
+    }
+    
+    // HACK: this is for the .keyframeAnimator in collapsedView, which already receives the new isExpanded value for initialValue:, meaning that
+    // we can't really set up a proper bi-directional animation without this. This just stores the previous value for isExpanded whenever it changes.
+    // Importantly, it starts nil so that it plays the animation the first time around (sigh...)
+    @State var collapsedView_prevIsExpanded: Bool?
+    
     var collapsedView: some View {
-        MorphContainer {
-            HStack {
-                // MARK: - Compact tab button
-                // TODO: optical alignment: this button should probably be slightly smaller than the search field
-                LuckTabViewStripCompactButton(animNS: animNS, icon: collapsedViewTabsIcon) {
-                    searchFieldFocusState = false
-                    isExpanded = true
+        
+        return HStack {
+            // MARK: - Compact tab button
+            // TODO: optical alignment: this button should probably be slightly smaller than the search field
+            LuckTabViewStripCompactButton(animNS: animNS, icon: collapsedViewTabsIcon) {
+                searchFieldFocusState = false
+                isExpanded = true
+            }
+            .morphable(shape: .circle)
+            .keyframeAnimator(initialValue: CollapsedViewButtonKFAnimProperties(offset: collapsedView_prevIsExpanded ?? isExpanded ? 50 : 0), trigger: collapsedView_prevIsExpanded) { content, props in
+                content
+                    .offset(x: props.offset)
+                    .scaleEffect(props.scale)
+            } keyframes: { props in
+                KeyframeTrack(\.offset) {
+                    SpringKeyframe(isExpanded ? 65.0 : 0.0, spring: .bouncy)
                 }
-                .zIndex(1) // TODO: maybe we should just have our custom button...
-                
-                // MARK: - Search field  @Behavior
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                    
-                    TextField("Artists, Songs, Lyrics and More", text: $searchFieldText) // TODO: placeholder parameter
-                        .font(.system(size: 14))
-                        .focused($searchFieldFocusState)
-                        .onChange(of: searchFieldFocusState) { oldValue, newValue in
-                            // TODO: kind of hacky:
-                            selectedTab = allTabs.first(where: {$0.isSearch}) ?? selectedTab
-                        }
-                }
-                .padding()
-                .background{
-                    MorphView(shape: Capsule()) {
-                        Capsule().fill(.clear)
-                    }
-                    .matchedGeometryEffect(id: "luckTabViewStripExpandedViewBar", in: animNS)
+                KeyframeTrack(\.scale) {
+                    SpringKeyframe(!isExpanded ? 1.0 : 0.7, spring: .bouncy)
                 }
             }
-            .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { collapsedSize = $0 })
-            .padding(.top)
-            .padding(.horizontal, 24) // @PreventClippingOnCollapse
-        } background: {
-            Rectangle().fill(.background)
+            .onChange(of: isExpanded, { oldValue, newValue in collapsedView_prevIsExpanded = oldValue })
+            .zIndex(1) // TODO: maybe we should just have our custom button...
+            
+            // MARK: - Search field  @Behavior
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                
+                TextField("Artists, Songs, Lyrics and More", text: $searchFieldText) // TODO: placeholder parameter
+                    .font(.system(size: 14))
+                    .focused($searchFieldFocusState)
+                    .onChange(of: searchFieldFocusState) { oldValue, newValue in
+                        // TODO: kind of hacky:
+                        selectedTab = allTabs.first(where: {$0.isSearch}) ?? selectedTab
+                    }
+            }
+            .padding()
+            .background{
+                Capsule()
+                    .fill(.clear)
+                    .morphable(shape: .capsule, intensity: 5)
+                    .matchedGeometryEffect(id: "luckTabViewStripExpandedViewBar", in: animNS, isSource: !isExpanded)
+            }
         }
+        .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { collapsedSize = $0 })
+        .padding(.top)
+        .padding(.horizontal, 24) // @PreventClippingOnCollapse
+        .frame(maxWidth: .infinity)
+        .morphContainer()
     }
     
     func stripSelectTabAction(tab: Tab) {
@@ -353,6 +376,8 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                 // Do not show the search tab when it isn't necessary (based on behavior mode):
                 // Exception in CompactAsDefault mode to show it is When the search box is focused and we are on the search tab.
                 .filter { tabStripBehavior != .CompactAsDefault || selectedTab.isSearch || !$0.isSearch }
+            
+            // TODO: animate indivudual tabs on isExpanded!
             ForEach(tabs) { tab in
                 LuckTabViewStripButton(
                     animNS: animNS,
@@ -363,8 +388,7 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                 .onChange(of: selectedTab, onSelectedTabChanged)
                 // @Behavior  smooth selection indicator position change when not collapsing:
                 // FIXME: The SW keyboard causes some weird visuals as collapsedView sticks to the top
-                .animation(tabStripBehavior != .CompactAsDefault && !searchFieldFocusState ? tabSelectionAnimation.speed(isSlowmo ? 0.1 : 1) : nil,
-                           value: selectedTab)
+                .animation(tabStripBehavior != .CompactAsDefault && !searchFieldFocusState ? tabSelectionAnimation.speed(isSlowmo ? 0.1 : 1) : nil, value: selectedTab)
             }
         }
         .padding(4)
@@ -372,8 +396,10 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
             Capsule()
                 .fill(.thinMaterial)
                 .stroke(lightBorder, lineWidth: 1)
-                .matchedGeometryEffect(id: "luckTabViewStripExpandedViewBar", in: animNS)
+                .matchedGeometryEffect(id: "luckTabViewStripExpandedViewBar", in: animNS, properties: .frame, isSource: isExpanded)
         }
+        .opacity(isExpanded ? 1 : 0)
+        .allowsHitTesting(isExpanded)
     }
     
     // TODO: move away!
@@ -410,3 +436,4 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
 #Preview {
     ContentView()
 }
+

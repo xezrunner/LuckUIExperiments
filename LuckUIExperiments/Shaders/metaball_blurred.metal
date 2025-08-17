@@ -6,6 +6,7 @@ using namespace metal;
 
 [[stitchable]] half4 metaball_blurred(float2 sample_position, SwiftUI::Layer layer) {
         half4 s = layer.sample(sample_position);
+    
         // Anti-aliased alpha thresholding:
         constexpr half threshold = 0.5;
     
@@ -13,5 +14,6 @@ using namespace metal;
         half edge = w * 0.5;
         
         float alpha = smoothstep(threshold - edge, threshold + edge, s.a);
+    
         return half4(0, 0, 0, alpha);
 }
