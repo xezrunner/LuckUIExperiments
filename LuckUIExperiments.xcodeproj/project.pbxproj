@@ -14,6 +14,7 @@
 		213F7D782E509A0E00369D41 /* Temp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 213F7D772E509A0E00369D41 /* Temp.swift */; };
 		213F7D7A2E509A1A00369D41 /* metaball_sdf.metal in Sources */ = {isa = PBXBuildFile; fileRef = 213F7D792E509A1A00369D41 /* metaball_sdf.metal */; };
 		213F7D7C2E509A9900369D41 /* XZMorphUI_SDF.swift in Sources */ = {isa = PBXBuildFile; fileRef = 213F7D7B2E509A9900369D41 /* XZMorphUI_SDF.swift */; };
+		214C232B2E53461200A8C771 /* ValueKeyframeAnimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 214C232A2E5345FE00A8C771 /* ValueKeyframeAnimator.swift */; };
 		215C68A32DB04E73005F1F6A /* metaball_blurred.metal in Sources */ = {isa = PBXBuildFile; fileRef = 215C68A22DB04E70005F1F6A /* metaball_blurred.metal */; };
 		215F35602DA7388600122F06 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215F355D2DA7388600122F06 /* ContentView.swift */; };
 		215F35612DA7388600122F06 /* LuckUIExperimentsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215F355E2DA7388600122F06 /* LuckUIExperimentsApp.swift */; };
@@ -32,6 +33,7 @@
 		213F7D772E509A0E00369D41 /* Temp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Temp.swift; sourceTree = "<group>"; };
 		213F7D792E509A1A00369D41 /* metaball_sdf.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = metaball_sdf.metal; sourceTree = "<group>"; };
 		213F7D7B2E509A9900369D41 /* XZMorphUI_SDF.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XZMorphUI_SDF.swift; sourceTree = "<group>"; };
+		214C232A2E5345FE00A8C771 /* ValueKeyframeAnimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ValueKeyframeAnimator.swift; sourceTree = "<group>"; };
 		215C68A22DB04E70005F1F6A /* metaball_blurred.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = metaball_blurred.metal; sourceTree = "<group>"; };
 		215F354E2DA7385E00122F06 /* LuckUIExperiments.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LuckUIExperiments.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		215F355C2DA7388600122F06 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -90,6 +92,14 @@
 			path = Effects;
 			sourceTree = "<group>";
 		};
+		214C23292E5345F900A8C771 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				214C232A2E5345FE00A8C771 /* ValueKeyframeAnimator.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
 		215F35452DA7385E00122F06 = {
 			isa = PBXGroup;
 			children = (
@@ -113,6 +123,7 @@
 				214369482DAC7671005CC7FB /* Demos */,
 				2143694A2DAC76D7005CC7FB /* Effects */,
 				212A4DA92DA8B0EB00B38DF3 /* Controls */,
+				214C23292E5345F900A8C771 /* Utilities */,
 				215F355E2DA7388600122F06 /* LuckUIExperimentsApp.swift */,
 				215F355C2DA7388600122F06 /* Assets.xcassets */,
 				213F7D772E509A0E00369D41 /* Temp.swift */,
@@ -224,6 +235,7 @@
 			files = (
 				210C1FCB2DAA7864008DB045 /* XZMorphUI.swift in Sources */,
 				212A4DA82DA8B0DF00B38DF3 /* LuckTabButton.swift in Sources */,
+				214C232B2E53461200A8C771 /* ValueKeyframeAnimator.swift in Sources */,
 				215F35602DA7388600122F06 /* ContentView.swift in Sources */,
 				215C68A32DB04E73005F1F6A /* metaball_blurred.metal in Sources */,
 				21FE2CDC2E5134E800A6C355 /* XZMorphUI_SDF_Debug.swift in Sources */,
