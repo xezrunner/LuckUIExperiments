@@ -39,7 +39,7 @@ public enum LuckTabViewStripBehavior: String, CaseIterable, Identifiable, Equata
     // As seen on X demo.
     case CompactAsDefault
     
-    public static var `default`: Self { CompactOnSearch }
+    public static var `default`: Self { CompactAsDefault }
 }
 
 // MARK: - TODO:
@@ -80,7 +80,7 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
         if tabStripBehavior == .CompactAsDefault { isTabStripExpanded = false }
     }
     
-    @State private var isTabStripExpanded: Bool = true
+    @State private var isTabStripExpanded: Bool = false
     @State private var searchFieldText: String = ""
     
     @State private var safeAreaSize: CGSize = .zero
@@ -200,6 +200,7 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
     @FocusState private var searchFieldFocusState: Bool
     
     @State private var tabSelectionAnimation: Animation = .spring(response: 0.38, dampingFraction: 0.8)
+    @State private var tabStripExpandAnimation: Animation = .spring(response: 0.4, dampingFraction: 0.83)
     
     var customTopInset: some View {
         HStack(spacing: 16) {
@@ -249,9 +250,10 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
         #endif
     }
     
-    @State private var collapsedSize: CGSize = .zero
-    @State private var expandedSize:  CGSize = .zero
-    private var tabStripContentHeight: CGFloat { !isExpanded ? collapsedSize.height : expandedSize.height }
+    @State private var compactViewGeo:  CGRect = .zero
+    @State private var expandedViewGeo: CGRect = .zero
+    
+    private var tabStripContentHeight: CGFloat { !isExpanded ? compactViewGeo.height : expandedViewGeo.height }
     @State private var tabStripBottomOffset: CGFloat = 16 // TODO: revise
     
     var body: some View {
@@ -262,65 +264,117 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                 .frame(height: tabStripContentHeight - tabStripBottomOffset)
         }
         .overlay(alignment: .bottom) {
-            VStack {
-                if !isExpanded {
-                    collapsedView
-                        .padding(.horizontal, -24) // HACK: to prevent clipping during the collapse animation  @PreventClippingOnCollapse
-//                        .border(.red)
-                }
-                else { expandedView }
-            }
-            .offset(y: tabStripBottomOffset)
-            // FIXME: This has a slight jerkiness to it, as we get two changes when we expand:
-            .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { expandedSize = $0 })
+            tabStripView
+                .offset(y: tabStripBottomOffset)
+                .animation(tabStripExpandAnimation.speed(isSlowmo ? 0.1 : 1), value: isExpanded)
         }
     }
-    
-    @State var collapsedViewContentSize: CGSize = .zero
     
     var collapsedViewTabsIcon: String {
         if selectedTab.isSearch { return "chevron.backward" }
         return selectedTab.icon
     }
     
-    var collapsedView: some View {
-        MorphContainer {
-            HStack {
-                // MARK: - Compact tab button
-                // TODO: optical alignment: this button should probably be slightly smaller than the search field
-                LuckTabViewStripCompactButton(animNS: animNS, icon: collapsedViewTabsIcon) {
-                    searchFieldFocusState = false
-                    isExpanded = true
-                }
-                .zIndex(1) // TODO: maybe we should just have our custom button...
-                
-                // MARK: - Search field  @Behavior
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                    
-                    TextField("Artists, Songs, Lyrics and More", text: $searchFieldText) // TODO: placeholder parameter
-                        .font(.system(size: 14))
-                        .focused($searchFieldFocusState)
-                        .onChange(of: searchFieldFocusState) { oldValue, newValue in
-                            // TODO: kind of hacky:
-                            selectedTab = allTabs.first(where: {$0.isSearch}) ?? selectedTab
-                        }
-                }
-                .padding()
-                .background{
-                    MorphView(shape: Capsule()) {
-                        Capsule().fill(.clear)
-                    }
-                    .matchedGeometryEffect(id: "luckTabViewStripExpandedViewBar", in: animNS)
-                }
-            }
-            .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { collapsedSize = $0 })
-            .padding(.top)
-            .padding(.horizontal, 24) // @PreventClippingOnCollapse
-        } background: {
-            Rectangle().fill(.background)
+    let tabStripViewCoordinateSpace = "luckTabViewStripContent"
+    var tabStripView: some View {
+        ZStack(alignment: .bottom) {
+            compactView
+            
+            tabStripMorphingPlatter
+            
+            expandedView
+                .opacity(isExpanded ? 1 : 0)
         }
+        .padding(.horizontal, 24) // HACK: to prevent clipping during the compact view collapse animation  @PreventClippingOnCollapse
+        .morphContainer()
+        .padding(.horizontal, -24) // @PreventClippingOnCollapse
+        
+        .coordinateSpace(name: tabStripViewCoordinateSpace)
+    }
+    
+    struct TabStripPlatterMorphAnimationProps {
+        let position: CGPoint
+        let size:     CGSize
+        
+        init(position: CGPoint, size: CGSize) {
+            self.position = position
+            self.size = size
+        }
+        
+        init(rect: CGRect) {
+            self.position = rect.origin
+            self.size     = rect.size
+        }
+    }
+    
+    let tabStripMorphingPlatterCoordinateSpace = "luckTabViewStripMorphingPlatter"
+    var tabStripMorphingPlatter: some View {
+        ZStack {
+            let compactViewAnimProps  = TabStripPlatterMorphAnimationProps(rect: compactViewSearchBarGeo)
+            let expandedViewAnimProps = TabStripPlatterMorphAnimationProps(rect: expandedViewGeo)
+            
+            Capsule().fill(.background)
+                .matchedGeometryEffect(id: tabStripMorphingPlatterCoordinateSpace, in: animNS, isSource: true) // links some views to the morphing platter!
+                .frame(width: compactViewSearchBarGeo.width, height: compactViewSearchBarGeo.height)
+                .offset(x: compactViewSearchBarGeo.origin.x, y: compactViewSearchBarGeo.origin.y)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    @State var compactViewSearchBarGeo: CGRect = .zero
+    var compactView: some View {
+        HStack {
+            // TODO: optical alignment: this button should probably be slightly smaller than the search field
+            LuckTabViewStripCompactButton(animNS: animNS, icon: collapsedViewTabsIcon) {
+                searchFieldFocusState = false
+                isExpanded = true
+            }
+            .morphable(shape: .circle)
+            
+            // MARK: - Search field  @Behavior
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                
+                TextField("Artists, Songs, Lyrics and More", text: $searchFieldText) // TODO: placeholder parameter
+                    .font(.system(size: 14))
+                    .focused($searchFieldFocusState)
+                    .onChange(of: searchFieldFocusState) { oldValue, newValue in
+                        // TODO: kind of hacky:
+                        selectedTab = allTabs.first(where: {$0.isSearch}) ?? selectedTab
+                    }
+            }
+            .padding()
+            .matchedGeometryEffect(id: tabStripMorphingPlatterCoordinateSpace, in: animNS)
+            .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named(tabStripViewCoordinateSpace)) }, action: { compactViewSearchBarGeo = $0 })
+        }
+//        .padding(.top)
+        .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named(tabStripViewCoordinateSpace)) }, action: { compactViewGeo = $0 })
+    }
+    
+    var expandedView: some View {
+        HStack(spacing: 0) {
+            let tabs = allTabs
+            // Do not show the search tab when it isn't necessary (based on behavior mode):
+            // Exception in CompactAsDefault mode to show it is When the search box is focused and we are on the search tab.
+                .filter { tabStripBehavior != .CompactAsDefault || selectedTab.isSearch || !$0.isSearch }
+            
+            // TODO: animate indivudual tabs on isExpanded!
+            ForEach(tabs) { tab in
+                LuckTabViewStripButton(
+                    animNS: animNS,
+                    isSelected: tab == selectedTab,
+                    icon: tab.icon, title: tab.rawValue as! String,
+                    action: { stripSelectTabAction(tab: tab) }
+                )
+                .onChange(of: selectedTab, onSelectedTabChanged)
+                // @Behavior  smooth selection indicator position change when not collapsing:
+                // FIXME: The SW keyboard causes some weird visuals as collapsedView sticks to the top
+                .animation(tabStripBehavior != .CompactAsDefault && !searchFieldFocusState ? tabSelectionAnimation.speed(isSlowmo ? 0.1 : 1) : nil, value: selectedTab)
+            }
+        }
+        .padding(4)
+        .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named(tabStripViewCoordinateSpace)) }, action: { expandedViewGeo = $0 })
     }
     
     func stripSelectTabAction(tab: Tab) {
@@ -345,35 +399,6 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
         // Dismiss when selecting search tab, unfocus search field otherwise:
         if selectedTab.isSearch { isExpanded = false }
         else                    { searchFieldFocusState = false }
-    }
-    
-    var expandedView: some View {
-        HStack(spacing: 0) {
-            let tabs = allTabs
-                // Do not show the search tab when it isn't necessary (based on behavior mode):
-                // Exception in CompactAsDefault mode to show it is When the search box is focused and we are on the search tab.
-                .filter { tabStripBehavior != .CompactAsDefault || selectedTab.isSearch || !$0.isSearch }
-            ForEach(tabs) { tab in
-                LuckTabViewStripButton(
-                    animNS: animNS,
-                    isSelected: tab == selectedTab,
-                    icon: tab.icon, title: tab.rawValue as! String,
-                    action: { stripSelectTabAction(tab: tab) }
-                )
-                .onChange(of: selectedTab, onSelectedTabChanged)
-                // @Behavior  smooth selection indicator position change when not collapsing:
-                // FIXME: The SW keyboard causes some weird visuals as collapsedView sticks to the top
-                .animation(tabStripBehavior != .CompactAsDefault && !searchFieldFocusState ? tabSelectionAnimation.speed(isSlowmo ? 0.1 : 1) : nil,
-                           value: selectedTab)
-            }
-        }
-        .padding(4)
-        .background {
-            Capsule()
-                .fill(.thinMaterial)
-                .stroke(lightBorder, lineWidth: 1)
-                .matchedGeometryEffect(id: "luckTabViewStripExpandedViewBar", in: animNS)
-        }
     }
     
     // TODO: move away!
