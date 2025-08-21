@@ -18,20 +18,23 @@ var animationSpeedMultiplier: Double { !_ValueKeyframeAnimatorSlowMotion ? 1.0 :
 
 public struct ValueKeyframeAnimatorModifier<AnimationProperties: Equatable, Path: Keyframes, Trigger: Equatable>: ViewModifier
 where Path.Value == AnimationProperties {
-    @State private var localProperties: AnimationProperties // This is effectively a 'local cache' for use per-frame
-    
     @Binding var properties: AnimationProperties
     var trigger: Trigger
+    @State var delay: Double = 0
+    @KeyframesBuilder<AnimationProperties> var keyframesBuilder: (AnimationProperties) -> Path
     
-    let keyframesBuilder: (AnimationProperties) -> Path
+    @State private var localProperties: AnimationProperties // This is effectively a 'local cache' for use per-frame
     
-    public init(properties: Binding<AnimationProperties>, trigger: Trigger, @KeyframesBuilder<AnimationProperties> keyframes: @escaping (AnimationProperties) -> Path) {
+    public init(properties: Binding<AnimationProperties>, trigger: Trigger, delay: Double, @KeyframesBuilder<AnimationProperties> keyframes: @escaping (AnimationProperties) -> Path) {
         self._properties = properties
         self.trigger = trigger
+        self.delay = delay
         self.keyframesBuilder = keyframes
-        _localProperties = State(initialValue: properties.wrappedValue) // set initial value on startup
-        // Defer actual timeline build until first animate() call so that timeline duration
-        // can reflect newest keyframe definition tied to trigger.
+        
+        _localProperties = State(initialValue: properties.wrappedValue)
+        
+        animTransaction = Transaction()
+        animTransaction.disablesAnimations = true // TODO: this is meant to disable implicit animations - verify whether it's actually needed.
     }
     
     @State private var timeline: KeyframeTimeline<AnimationProperties>? = nil
@@ -40,20 +43,24 @@ where Path.Value == AnimationProperties {
         timeline = KeyframeTimeline(initialValue: value) { path }
     }
     
+    var animTransaction: Transaction
+    
     public func body(content: Content) -> some View {
         content
             .overlay {
-                TimelineView(.animation) { context in
-                    EmptyView()
-                        .onChange(of: context.date) { _, newValue in advanceFrame(date: newValue) }
+                if animating {
+                    TimelineView(.animation) { context in
+                        EmptyView()
+                            .onChange(of: context.date) { _, newValue in advanceFrame(date: newValue) }
+                    }
                 }
-                .onChange(of: trigger, animate)
-                .onChange(of: properties) { _, newValue in
-                    // Update the initial local properties if they change outside prior to animating,
-                    // so that we react to property changes for the view before animating:
-                    // FIXME: protocol for AnimationProperties?
-                    if !animating { localProperties = newValue }
-                }
+            }
+            .onChange(of: trigger, animate)
+            .onChange(of: properties) { _, newValue in
+                // Update the initial local properties if they change outside prior to animating,
+                // so that we react to property changes for the view before animating:
+                // FIXME: protocol for AnimationProperties?
+                if !animating { localProperties = newValue }
             }
     }
     
@@ -64,7 +71,7 @@ where Path.Value == AnimationProperties {
     
     private func animate() {
         prepareTimeline(with: localProperties)
-        animLastFrame = Date()
+        animLastFrame = Date() + delay
         animTime = 0
         animating = true
     }
@@ -77,8 +84,10 @@ where Path.Value == AnimationProperties {
         // Accumulate time since last frame, divided by the animation slowness:
         // TODO: verify that we are actually animating at the correct speed in practice:
         let delta = date.timeIntervalSince(animLastFrame)
-        if delta >= 0 { animTime += delta / animationSpeedMultiplier }
-        self.animLastFrame = date
+        if delta >= 0 {
+            animTime += delta / animationSpeedMultiplier
+            self.animLastFrame = date
+        }
         
         let duration = timeline.duration
         let time     = min(animTime, duration)
@@ -88,10 +97,7 @@ where Path.Value == AnimationProperties {
         if localProperties != newProperties {
             localProperties = newProperties
             
-            // Update external value without implicit animation:
-            var t = Transaction()
-            t.disablesAnimations = true
-            withTransaction(t) {
+            withTransaction(animTransaction) {
                 properties = newProperties
             }
         }
@@ -109,16 +115,16 @@ public extension View {
     ///   - trigger: An Equatable value; changes rebuild the keyframes starting from the current value.
     ///   - keyframes: Builder producing a keyframe track hierarchy describing how properties evolve.
     func valueKeyframeAnimator<AnimationProperties: Equatable, Path: Keyframes, Trigger: Equatable>(
-        properties: Binding<AnimationProperties>, trigger: Trigger, @KeyframesBuilder<AnimationProperties> keyframes: @escaping (AnimationProperties) -> Path) -> some View
+        properties: Binding<AnimationProperties>, trigger: Trigger, delay: Double = 0, @KeyframesBuilder<AnimationProperties> keyframes: @escaping (AnimationProperties) -> Path) -> some View
     where Path.Value == AnimationProperties {
-        modifier(ValueKeyframeAnimatorModifier(properties: properties, trigger: trigger, keyframes: keyframes))
+        modifier(ValueKeyframeAnimatorModifier(properties: properties, trigger: trigger, delay: delay, keyframes: keyframes))
     }
     
     /// Convenience overload using the bound value itself as the trigger (any change restarts animation).
     func valueKeyframeAnimator<AnimationProperties: Equatable, Path: Keyframes>(
-        properties: Binding<AnimationProperties>, @KeyframesBuilder<AnimationProperties> keyframes: @escaping (AnimationProperties) -> Path) -> some View
+        properties: Binding<AnimationProperties>, delay: Double = 0, @KeyframesBuilder<AnimationProperties> keyframes: @escaping (AnimationProperties) -> Path) -> some View
     where Path.Value == AnimationProperties {
-        modifier(ValueKeyframeAnimatorModifier(properties: properties, trigger: properties.wrappedValue, keyframes: keyframes))
+        modifier(ValueKeyframeAnimatorModifier(properties: properties, trigger: properties.wrappedValue, delay: delay, keyframes: keyframes))
     }
 }
 
