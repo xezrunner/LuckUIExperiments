@@ -19,6 +19,7 @@
 		215F35602DA7388600122F06 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215F355D2DA7388600122F06 /* ContentView.swift */; };
 		215F35612DA7388600122F06 /* LuckUIExperimentsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215F355E2DA7388600122F06 /* LuckUIExperimentsApp.swift */; };
 		215F35622DA7388600122F06 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 215F355C2DA7388600122F06 /* Assets.xcassets */; };
+		21C6EAC52E538B7A00622B4E /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21C6EAC42E538B7800622B4E /* Extensions.swift */; };
 		21E37DCA2DA88A0F0002997C /* VariableBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21E37DC92DA88A0F0002997C /* VariableBlur.swift */; };
 		21FE2CDC2E5134E800A6C355 /* XZMorphUI_SDF_Debug.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21FE2CDB2E5134E300A6C355 /* XZMorphUI_SDF_Debug.swift */; };
 		21FEB7572E510A6B00C41EF2 /* metaball_sdf_shapes.h in Sources */ = {isa = PBXBuildFile; fileRef = 21FEB7562E510A6600C41EF2 /* metaball_sdf_shapes.h */; };
@@ -30,6 +31,7 @@
 		210C1FCC2DAAABA1008DB045 /* LibraryTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryTabView.swift; sourceTree = "<group>"; };
 		212A4DA72DA8B0DF00B38DF3 /* LuckTabButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LuckTabButton.swift; sourceTree = "<group>"; };
 		212A4DAA2DA8B10100B38DF3 /* LuckTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LuckTabView.swift; sourceTree = "<group>"; };
+		212CA3492E59312A00CE8798 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		213F7D772E509A0E00369D41 /* Temp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Temp.swift; sourceTree = "<group>"; };
 		213F7D792E509A1A00369D41 /* metaball_sdf.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = metaball_sdf.metal; sourceTree = "<group>"; };
 		213F7D7B2E509A9900369D41 /* XZMorphUI_SDF.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XZMorphUI_SDF.swift; sourceTree = "<group>"; };
@@ -39,6 +41,7 @@
 		215F355C2DA7388600122F06 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		215F355D2DA7388600122F06 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		215F355E2DA7388600122F06 /* LuckUIExperimentsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LuckUIExperimentsApp.swift; sourceTree = "<group>"; };
+		21C6EAC42E538B7800622B4E /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		21E37DC92DA88A0F0002997C /* VariableBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VariableBlur.swift; sourceTree = "<group>"; };
 		21FE2CDB2E5134E300A6C355 /* XZMorphUI_SDF_Debug.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XZMorphUI_SDF_Debug.swift; sourceTree = "<group>"; };
 		21FEB7562E510A6600C41EF2 /* metaball_sdf_shapes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = metaball_sdf_shapes.h; sourceTree = "<group>"; };
@@ -95,6 +98,7 @@
 		214C23292E5345F900A8C771 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				21C6EAC42E538B7800622B4E /* Extensions.swift */,
 				214C232A2E5345FE00A8C771 /* ValueKeyframeAnimator.swift */,
 			);
 			path = Utilities;
@@ -119,6 +123,7 @@
 		215F355F2DA7388600122F06 /* LuckUIExperiments */ = {
 			isa = PBXGroup;
 			children = (
+				212CA3492E59312A00CE8798 /* Info.plist */,
 				219427982DAEC1AB00F7E1B4 /* Shaders */,
 				214369482DAC7671005CC7FB /* Demos */,
 				2143694A2DAC76D7005CC7FB /* Effects */,
@@ -244,6 +249,7 @@
 				21FEB7592E510AB100C41EF2 /* metaball_sdf_common.h in Sources */,
 				213F7D7A2E509A1A00369D41 /* metaball_sdf.metal in Sources */,
 				215F35612DA7388600122F06 /* LuckUIExperimentsApp.swift in Sources */,
+				21C6EAC52E538B7A00622B4E /* Extensions.swift in Sources */,
 				21E37DCA2DA88A0F0002997C /* VariableBlur.swift in Sources */,
 				210C1FCD2DAAABA1008DB045 /* LibraryTabView.swift in Sources */,
 				213F7D782E509A0E00369D41 /* Temp.swift in Sources */,
@@ -390,6 +396,7 @@
 				DEVELOPMENT_TEAM = W7TTKAZX72;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LuckUIExperiments/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -419,6 +426,7 @@
 				DEVELOPMENT_TEAM = W7TTKAZX72;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LuckUIExperiments/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

@@ -55,6 +55,7 @@ where Path.Value == AnimationProperties {
                     }
                 }
             }
+//            .overlay { Text("animTime: \(animTime)").background(animating ? .green : .gray) }
             .onChange(of: trigger, animate)
             .onChange(of: properties) { _, newValue in
                 // Update the initial local properties if they change outside prior to animating,
@@ -71,8 +72,8 @@ where Path.Value == AnimationProperties {
     
     private func animate() {
         prepareTimeline(with: localProperties)
-        animLastFrame = Date() + delay
-        animTime = 0
+        animLastFrame = Date()
+        animTime = 0 - delay
         animating = true
     }
     
@@ -84,17 +85,16 @@ where Path.Value == AnimationProperties {
         // Accumulate time since last frame, divided by the animation slowness:
         // TODO: verify that we are actually animating at the correct speed in practice:
         let delta = date.timeIntervalSince(animLastFrame)
-        if delta >= 0 {
-            animTime += delta / animationSpeedMultiplier
-            self.animLastFrame = date
-        }
+        if delta >= 0 { animTime += delta / animationSpeedMultiplier }
+        
+        self.animLastFrame = date
         
         let duration = timeline.duration
-        let time     = min(animTime, duration)
+        let time     = min(max(0, animTime), duration)
         
         let newProperties = timeline.value(time: time)
         
-        if localProperties != newProperties {
+        if newProperties != localProperties {
             localProperties = newProperties
             
             withTransaction(animTransaction) {

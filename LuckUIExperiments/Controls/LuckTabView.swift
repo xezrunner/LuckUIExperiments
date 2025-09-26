@@ -174,6 +174,8 @@ struct LuckTabView<Tab: LuckNavigationDestination>: View {
             }
             
             Toggle("Slow Animations (local)", isOn: $isSlowmo)
+                .onChange(of: isSlowmo) { _, newValue in _ValueKeyframeAnimatorSlowMotion = newValue }
+            
             Toggle("Tab Strip Expanded",      isOn: $isTabStripExpanded)
         }
         .font(.system(size: 14))
@@ -230,9 +232,7 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
         .padding(12)
         .padding(.horizontal, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            Capsule().fill(BackgroundStyle.background)
-        }
+        .background(.background, in: .capsule)
     }
     
     // TODO: custom
@@ -277,8 +277,9 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
     
     let tabStripViewCoordinateSpace = "luckTabViewStripContent"
     var tabStripView: some View {
-        ZStack(alignment: .bottom) {
+        ZStack(alignment: .top) { // TODO: no idea why this needs to be top, investigate!
             compactView
+                .opacity(!isExpanded ? 1 : 0)
             
             tabStripMorphingPlatter
             
@@ -286,42 +287,66 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                 .opacity(isExpanded ? 1 : 0)
         }
         .padding(.horizontal, 24) // HACK: to prevent clipping during the compact view collapse animation  @PreventClippingOnCollapse
-        .morphContainer()
+        .morphContainer() {
+            if !isExpanded { Rectangle().fill(.background) }
+            else           { Rectangle().fill(.thinMaterial) }
+        }
         .padding(.horizontal, -24) // @PreventClippingOnCollapse
         
         .coordinateSpace(name: tabStripViewCoordinateSpace)
     }
     
-    struct TabStripPlatterMorphAnimationProps {
-        let position: CGPoint
-        let size:     CGSize
+    struct TabStripPlatterMorphAnimationProps: Equatable {
+        var position: CGPoint
+        var size:     CGSize
         
         init(position: CGPoint, size: CGSize) {
             self.position = position
             self.size = size
         }
-        
-        init(rect: CGRect) {
-            self.position = rect.origin
-            self.size     = rect.size
-        }
+        init(rect: CGRect) { self.init(position: rect.origin, size: rect.size) }
+        init() { self.init(rect: .zero) }
     }
     
-    let tabStripMorphingPlatterCoordinateSpace = "luckTabViewStripMorphingPlatter"
+    @State private var tabStripMorphingAnimProps = TabStripPlatterMorphAnimationProps()
     var tabStripMorphingPlatter: some View {
         ZStack {
             let compactViewAnimProps  = TabStripPlatterMorphAnimationProps(rect: compactViewSearchBarGeo)
             let expandedViewAnimProps = TabStripPlatterMorphAnimationProps(rect: expandedViewGeo)
             
-            Capsule().fill(.background)
-                .matchedGeometryEffect(id: tabStripMorphingPlatterCoordinateSpace, in: animNS, isSource: true) // links some views to the morphing platter!
-                .frame(width: compactViewSearchBarGeo.width, height: compactViewSearchBarGeo.height)
-                .offset(x: compactViewSearchBarGeo.origin.x, y: compactViewSearchBarGeo.origin.y)
+            Spacer()
+                .morphable(shape: .capsule, intensity: 5)
+                .frame(width: tabStripMorphingAnimProps.size.width, height: tabStripMorphingAnimProps.size.height)
+                .offset(x:    tabStripMorphingAnimProps.position.x, y: tabStripMorphingAnimProps.position.y)
+            
+                .valueKeyframeAnimator(properties: $tabStripMorphingAnimProps, trigger: isExpanded) { props in
+                    KeyframeTrack(\.position) {
+                        SpringKeyframe(isExpanded ? compactViewAnimProps.position.add(x: 40) : compactViewAnimProps.position, duration: 0.1, spring: tabExpansionSpring)
+                        SpringKeyframe(isExpanded ? compactViewAnimProps.position.add(x: -10) : compactViewAnimProps.position, duration: 0.05, spring: tabExpansionSpring)
+                        SpringKeyframe(isExpanded ? expandedViewAnimProps.position : compactViewAnimProps.position, spring: tabExpansionSpring)
+                    }
+                    KeyframeTrack(\.size) {
+                        SpringKeyframe(isExpanded ? compactViewAnimProps.size.add(width: -40) : expandedViewAnimProps.size, duration: isExpanded ? 0.15 : 0, spring: tabExpansionSpring)
+                        SpringKeyframe(isExpanded ? expandedViewAnimProps.size : compactViewAnimProps.size, spring: tabExpansionSpring)
+                    }
+                }
+                .onAppear() {
+                    tabStripMorphingAnimProps = .init(rect: compactViewSearchBarGeo)
+                }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
     
+    struct BasicKeyframeAnimProps: Equatable {
+        var offset: CGPoint = .zero
+        var scale:  CGPoint = .init(x: 1, y: 1)
+    }
+    
+    let tabExpansionSpring = Spring(response: 0.6, dampingRatio: 0.8)
+    
     @State var compactViewSearchBarGeo: CGRect = .zero
+    @State var compactViewTabsButtonAnimProps = BasicKeyframeAnimProps()
+    @State var compactViewSearchBarAnimProps  = BasicKeyframeAnimProps()
     var compactView: some View {
         HStack {
             // TODO: optical alignment: this button should probably be slightly smaller than the search field
@@ -330,6 +355,19 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                 isExpanded = true
             }
             .morphable(shape: .circle)
+            .offset(x: compactViewTabsButtonAnimProps.offset.x)
+            .scaleEffect(x: compactViewTabsButtonAnimProps.scale.x, y: compactViewTabsButtonAnimProps.scale.y)
+            .blur(radius: isExpanded ? 10 : 0)
+            .valueKeyframeAnimator(properties: $compactViewTabsButtonAnimProps, trigger: isExpanded) { props in
+                KeyframeTrack(\.offset) {
+                    let offset = isExpanded ? 150 : 0
+                    SpringKeyframe(.init(x: offset, y: 0), spring: tabExpansionSpring)
+                }
+                KeyframeTrack(\.scale) {
+                    let scale = isExpanded ? CGPoint(x: 0.5, y: 0.5) : CGPoint(x: 1, y: 1)
+                    SpringKeyframe(scale, spring: tabExpansionSpring)
+                }
+            }
             
             // MARK: - Search field  @Behavior
             HStack {
@@ -345,13 +383,26 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                     }
             }
             .padding()
-            .matchedGeometryEffect(id: tabStripMorphingPlatterCoordinateSpace, in: animNS)
+            .offset(x: compactViewSearchBarAnimProps.offset.x)
+            .scaleEffect(x: compactViewSearchBarAnimProps.scale.x, y: compactViewSearchBarAnimProps.scale.y)
+            .blur(radius: isExpanded ? 10 : 0)
+            .valueKeyframeAnimator(properties: $compactViewSearchBarAnimProps, trigger: isExpanded) { props in
+                KeyframeTrack(\.offset) {
+                    let offset = isExpanded ? 30 : 0
+                    SpringKeyframe(.init(x: offset, y: 0), spring: tabExpansionSpring)
+                }
+                KeyframeTrack(\.scale) {
+                    let scale = isExpanded ? CGPoint(x: 0.8, y: 0.9) : CGPoint(x: 1, y: 1)
+                    SpringKeyframe(scale, spring: tabExpansionSpring)
+                }
+            }
             .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named(tabStripViewCoordinateSpace)) }, action: { compactViewSearchBarGeo = $0 })
         }
-//        .padding(.top)
         .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named(tabStripViewCoordinateSpace)) }, action: { compactViewGeo = $0 })
+        .padding(.top)
     }
     
+    @State var expandedViewTabButtonAnimProps = BasicKeyframeAnimProps()
     var expandedView: some View {
         HStack(spacing: 0) {
             let tabs = allTabs
@@ -360,20 +411,44 @@ fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
                 .filter { tabStripBehavior != .CompactAsDefault || selectedTab.isSearch || !$0.isSearch }
             
             // TODO: animate indivudual tabs on isExpanded!
-            ForEach(tabs) { tab in
+            ForEach(Array(tabs.enumerated()), id: \.element) { index, tab in
+                let fIndex = CGFloat(index)
+                
+                let scaleValue  = max(0, 1 - (1 - expandedViewTabButtonAnimProps.scale.x) * sqrt(fIndex+1))
+                let offsetValue = expandedViewTabButtonAnimProps.offset.x * pow(fIndex+1, isExpanded ? 2.05 : 2.3)
+                let blurValue   = (1 - expandedViewTabButtonAnimProps.scale.x) * 10
+                
                 LuckTabViewStripButton(
                     animNS: animNS,
                     isSelected: tab == selectedTab,
                     icon: tab.icon, title: tab.rawValue as! String,
                     action: { stripSelectTabAction(tab: tab) }
                 )
+                .scaleEffect(scaleValue)
+                .offset(x: offsetValue)
+                .blur(radius: blurValue)
                 .onChange(of: selectedTab, onSelectedTabChanged)
                 // @Behavior  smooth selection indicator position change when not collapsing:
                 // FIXME: The SW keyboard causes some weird visuals as collapsedView sticks to the top
                 .animation(tabStripBehavior != .CompactAsDefault && !searchFieldFocusState ? tabSelectionAnimation.speed(isSlowmo ? 0.1 : 1) : nil, value: selectedTab)
             }
         }
+        .offset(x: tabStripMorphingAnimProps.position.x)
         .padding(4)
+        .valueKeyframeAnimator(properties: $expandedViewTabButtonAnimProps, trigger: isExpanded, delay: isExpanded ? 0.05 : 0) { props in
+            KeyframeTrack(\.scale) {
+                let start = isExpanded ? 0 : 1
+                let end   = isExpanded ? 1 : 0
+                MoveKeyframe  (.init(x: start, y: start))
+                SpringKeyframe(.init(x: end,   y: end), spring: tabExpansionSpring)
+            }
+            KeyframeTrack(\.offset) {
+                let start = isExpanded ? -30 : 0
+                let end   = isExpanded ? 0 : -10
+                MoveKeyframe  (.init(x: start, y: start))
+                SpringKeyframe(.init(x: end,   y: end), spring: Spring(response: 0.6, dampingRatio: 0.85))
+            }
+        }
         .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named(tabStripViewCoordinateSpace)) }, action: { expandedViewGeo = $0 })
     }
     
