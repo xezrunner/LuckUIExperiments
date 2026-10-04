@@ -39,6 +39,7 @@ struct LuckTabViewStripButton<ID: Hashable>: View {
             if isSelected {
                 Capsule().fill(.background)
                     .matchedGeometryEffect(id: "selection", in: namespace)
+                    .shadow(color: .black.opacity(0.1), radius: 4)
             }
         }
         .accessibilityLabel(Text(tab.title))

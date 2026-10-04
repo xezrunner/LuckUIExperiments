@@ -1,4 +1,5 @@
 import SwiftUI
+import QuartzCore
 
 struct LuckTabBar<Selection: Hashable>: View {
     let tabs: [LuckTab<Selection>]
@@ -13,7 +14,7 @@ struct LuckTabBar<Selection: Hashable>: View {
     let select: (Selection) -> Void
     let expand: () -> Void
 
-    @State private var initialFrame: LuckTabBarFrame
+    @State private var motion: LuckTabBarMotion
     @Namespace private var selectionNamespace
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.luckTabBarReduceMotion) private var requestedReduceMotion
@@ -21,6 +22,7 @@ struct LuckTabBar<Selection: Hashable>: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.scenePhase) private var scenePhase
     @ScaledMetric(relativeTo: .caption) private var scaledTabWidth: CGFloat = 80
 
     init(tabs: [LuckTab<Selection>], selection: Selection, behavior: LuckTabViewStripBehavior,
@@ -39,8 +41,7 @@ struct LuckTabBar<Selection: Hashable>: View {
         self.searchFocused = searchFocused
         self.select = select
         self.expand = expand
-        // NOTE: Changing initialValue with the trigger resets the animator to its target.
-        _initialFrame = State(initialValue: LuckTabBarFrame(expanded: isExpanded))
+        _motion = State(initialValue: LuckTabBarMotion(expanded: isExpanded))
     }
 
     private var buttonSize: CGFloat { compactHeight - 4 }
@@ -55,16 +56,31 @@ struct LuckTabBar<Selection: Hashable>: View {
 
     var body: some View {
         GeometryReader { geometry in
-            KeyframeAnimator(initialValue: initialFrame,
-                             trigger: isExpanded) { animated in
-                let frame = reduceMotion ? LuckTabBarFrame(expanded: isExpanded) : animated
-                strip(frame: frame, width: geometry.size.width)
-            } keyframes: { value in
-                tracks(from: value)
-            }
+            strip(frame: motion.frame, width: geometry.size.width)
         }
+        .onChange(of: isExpanded) { _, _ in animate() }
+        .onChange(of: reduceMotion) { _, reduced in
+            if reduced { motion.settle(at: LuckTabBarFrame(expanded: isExpanded)) }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { motion.finish() }
+        }
+        .onAppear { motion.settle(at: LuckTabBarFrame(expanded: isExpanded)) }
+        .onDisappear { motion.finish() }
         .frame(height: isExpanded ? expandedHeight : compactHeight)
         .animation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.83).speed(speed), value: isExpanded)
+    }
+
+    private func animate() {
+        let target = LuckTabBarFrame(expanded: isExpanded)
+        guard !reduceMotion, scenePhase == .active else {
+            motion.settle(at: target)
+            return
+        }
+        let timeline = KeyframeTimeline(initialValue: motion.frame) {
+            tracks(from: motion.frame)
+        }
+        motion.play(timeline, target: target)
     }
 
     private func strip(frame: LuckTabBarFrame, width: CGFloat) -> some View {
@@ -113,6 +129,8 @@ struct LuckTabBar<Selection: Hashable>: View {
         }
         .frame(width: width + 48, height: max(compactHeight, expandedHeight) + 48)
         .mask { SDFMorphMask(entities: entities) }
+        .compositingGroup()
+        .shadow(color: .black.opacity(0.08), radius: 4)
         .offset(x: -24 * direction, y: -24)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -238,7 +256,7 @@ struct LuckTabBar<Selection: Hashable>: View {
                 LinearKeyframe(value.expansion, duration: 0.15 / speed)
                 SpringKeyframe(1, spring: spring)
             } else {
-                SpringKeyframe(isExpanded ? 1 : 0, spring: spring)
+                SpringKeyframe(isExpanded ? 1 : 0, spring: spring, startVelocity: motion.velocity(\.expansion))
             }
         }
         KeyframeTrack(\.nudge) {
@@ -247,7 +265,7 @@ struct LuckTabBar<Selection: Hashable>: View {
                 SpringKeyframe(-10, duration: 0.05 / speed, spring: spring)
                 SpringKeyframe(0, spring: spring)
             } else {
-                SpringKeyframe(0, spring: spring)
+                SpringKeyframe(0, spring: spring, startVelocity: motion.velocity(\.nudge))
             }
         }
         KeyframeTrack(\.squeeze) {
@@ -255,22 +273,31 @@ struct LuckTabBar<Selection: Hashable>: View {
                 SpringKeyframe(40, duration: 0.15 / speed, spring: spring)
                 SpringKeyframe(0, spring: spring)
             } else {
-                SpringKeyframe(0, spring: spring)
+                SpringKeyframe(0, spring: spring, startVelocity: motion.velocity(\.squeeze))
             }
         }
-        KeyframeTrack(\.buttonOffset) { SpringKeyframe(isExpanded ? 150 : 0, spring: spring) }
-        KeyframeTrack(\.buttonScale) { SpringKeyframe(isExpanded ? 0.5 : 1, spring: spring) }
-        KeyframeTrack(\.searchOffset) { SpringKeyframe(isExpanded ? 30 : 0, spring: spring) }
-        KeyframeTrack(\.searchScale) { SpringKeyframe(isExpanded ? 0.8 : 1, spring: spring) }
+        KeyframeTrack(\.buttonOffset) {
+            SpringKeyframe(isExpanded ? 150 : 0, spring: spring, startVelocity: motion.velocity(\.buttonOffset))
+        }
+        KeyframeTrack(\.buttonScale) {
+            SpringKeyframe(isExpanded ? 0.5 : 1, spring: spring, startVelocity: motion.velocity(\.buttonScale))
+        }
+        KeyframeTrack(\.searchOffset) {
+            SpringKeyframe(isExpanded ? 30 : 0, spring: spring, startVelocity: motion.velocity(\.searchOffset))
+        }
+        KeyframeTrack(\.searchScale) {
+            SpringKeyframe(isExpanded ? 0.8 : 1, spring: spring, startVelocity: motion.velocity(\.searchScale))
+        }
         KeyframeTrack(\.visibility) {
-            SpringKeyframe(isExpanded ? 1 : 0, spring: Spring(response: 0.4 / speed, dampingRatio: 0.83))
+            SpringKeyframe(isExpanded ? 1 : 0, spring: Spring(response: 0.4 / speed, dampingRatio: 0.83),
+                           startVelocity: motion.velocity(\.visibility))
         }
         KeyframeTrack(\.labelScale) {
             if isExpanded && value.isRestingCompact {
                 LinearKeyframe(value.labelScale, duration: 0.05 / speed)
                 SpringKeyframe(1, spring: spring)
             } else {
-                SpringKeyframe(isExpanded ? 1 : 0, spring: spring)
+                SpringKeyframe(isExpanded ? 1 : 0, spring: spring, startVelocity: motion.velocity(\.labelScale))
             }
         }
         KeyframeTrack(\.labelOffset) {
@@ -285,11 +312,12 @@ struct LuckTabBar<Selection: Hashable>: View {
                     SpringKeyframe(0, spring: Spring(response: 0.6 / speed, dampingRatio: 0.85))
                 }
             } else {
-                SpringKeyframe(isExpanded ? 0 : -10, spring: Spring(response: 0.6 / speed, dampingRatio: 0.85))
+                SpringKeyframe(isExpanded ? 0 : -10, spring: Spring(response: 0.6 / speed, dampingRatio: 0.85),
+                               startVelocity: motion.velocity(\.labelOffset))
             }
         }
         KeyframeTrack(\.labelExponent) {
-            SpringKeyframe(isExpanded ? 2.05 : 2.3, spring: spring)
+            SpringKeyframe(isExpanded ? 2.05 : 2.3, spring: spring, startVelocity: motion.velocity(\.labelExponent))
         }
     }
 }
@@ -327,5 +355,71 @@ private struct LuckTabBarFrame {
         labelScale = expanded ? 1 : 0
         labelOffset = expanded ? 0 : -30
         labelExponent = expanded ? 2.05 : 2.3
+    }
+}
+
+// NOTE: Keep the last presented frame ourselves. KeyframeAnimator can restart from its
+// initial value after idle, skipping a collapse even though the bar is visibly expanded.
+@MainActor @Observable
+private final class LuckTabBarMotion: NSObject {
+    private(set) var frame: LuckTabBarFrame
+    @ObservationIgnored private var timeline: KeyframeTimeline<LuckTabBarFrame>?
+    @ObservationIgnored private var target: LuckTabBarFrame
+    @ObservationIgnored private var startedAt: CFTimeInterval = 0
+    @ObservationIgnored private var sampleTime: TimeInterval = 0
+    @ObservationIgnored private var displayLink: CADisplayLink?
+
+    init(expanded: Bool) {
+        let initial = LuckTabBarFrame(expanded: expanded)
+        frame = initial
+        target = initial
+    }
+
+    func play(_ timeline: KeyframeTimeline<LuckTabBarFrame>, target: LuckTabBarFrame) {
+        self.timeline = timeline
+        self.target = target
+        startedAt = CACurrentMediaTime()
+        sampleTime = 0
+        guard displayLink == nil else { return }
+        let link = CADisplayLink(target: self, selector: #selector(tick))
+        // NOTE: ProMotion is a preference; power and thermal policy can select a lower rate.
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 80, maximum: 120, preferred: 120)
+        link.add(to: .main, forMode: .common)
+        displayLink = link
+    }
+
+    @objc private func tick(_ link: CADisplayLink) {
+        guard let timeline else { return }
+        let elapsed = max(0, link.targetTimestamp - startedAt)
+        guard elapsed < timeline.duration else {
+            finish()
+            return
+        }
+        sampleTime = elapsed
+        withTransaction(Transaction(animation: nil)) {
+            frame = timeline.value(time: elapsed)
+        }
+    }
+
+    func velocity(_ keyPath: KeyPath<LuckTabBarFrame, CGFloat>) -> CGFloat {
+        guard let timeline else { return 0 }
+        // NOTE: Retarget with the velocity at the presented frame, keeping interrupted springs connected.
+        let before = max(0, sampleTime - 0.0001)
+        let after = min(timeline.duration, sampleTime + 0.0001)
+        guard after > before else { return 0 }
+        return (timeline.value(time: after)[keyPath: keyPath] -
+                timeline.value(time: before)[keyPath: keyPath]) / (after - before)
+    }
+
+    func settle(at target: LuckTabBarFrame) {
+        self.target = target
+        finish()
+    }
+
+    func finish() {
+        displayLink?.invalidate()
+        displayLink = nil
+        timeline = nil
+        withTransaction(Transaction(animation: nil)) { frame = target }
     }
 }

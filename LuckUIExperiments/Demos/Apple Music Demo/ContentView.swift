@@ -96,7 +96,7 @@ struct ContentView: View {
         .tint(.primary)
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
-        .background(.background, in: .capsule)
+        .background(.background.shadow(.drop(color: .black.opacity(0.08), radius: 4)), in: .capsule)
     }
 
     private var settings: some View {

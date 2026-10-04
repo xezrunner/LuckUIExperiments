@@ -26,6 +26,26 @@ final class LuckTabViewUITests: XCTestCase {
         XCTAssertTrue(app.buttons["luck.tab.radio"].isSelected)
     }
 
+    func testIdleCollapseMovesBeforeReachingCompactPosition() {
+        continueAfterFailure = false
+        app.launch()
+        let expand = app.buttons["luck.tabs.expand"]
+        XCTAssertTrue(expand.waitForExistence(timeout: 5))
+        let compactX = expand.frame.midX
+        editSettings { tap(app.switches["Slow animations"]) }
+        tap(expand)
+        // NOTE: The regression occurs after the opening timeline has finished, not during interruption.
+        Thread.sleep(forTimeInterval: 20)
+        selectTab("library")
+        XCTAssertTrue(expand.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(expand.frame.midX, compactX + 8,
+                             "Collapse must start from the expanded geometry instead of fading in at rest")
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            abs(expand.frame.midX - compactX) < 2
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 20), .completed)
+    }
+
     func testSelectionBindingAndIndependentDestinationState() {
         launchDemo(behavior: "Compact on search")
         let favorites = app.buttons["demo.favorites"]
