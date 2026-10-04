@@ -6,6 +6,8 @@ Open `LuckUIExperiments.xcodeproj` and run the shared `LuckUIExperiments` scheme
 
 ## Using the tab view
 
+For app integration guidance, see [Docs/LuckTabView.md](Docs/LuckTabView.md).
+
 `LuckTabView` takes stable, typed destinations and a selection binding. Each destination owns its navigation and content. The underlying SwiftUI `TabView` preserves destination state while the custom bar handles presentation.
 
 ```swift
