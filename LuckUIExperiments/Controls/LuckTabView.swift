@@ -1,512 +1,328 @@
-// LuckUIExperiments::LuckTabView.swift - 11/04/2025
-
 import SwiftUI
+import UIKit
 
-protocol LuckNavigationDestination: CaseIterable, Identifiable, Hashable, Equatable, RawRepresentable
-where AllCases == Array<Self>, RawValue: StringProtocol {
-    var id: Self { get }
-    
-    associatedtype Content: View
-    @ViewBuilder func view() -> Content
-    
-    var icon:     String { get }
-    var isSearch: Bool   { get }
+public enum LuckTabRole {
+    case tab
+    case search
 }
 
-extension LuckNavigationDestination {
-    var id: Self { self }
-    var icon: String { get { return "gear" } }
-    var isSearch: Bool { get { return false }}
+/// A stable destination. Keep its ID unchanged when its title or badge changes.
+public struct LuckTab<ID: Hashable>: Identifiable {
+    public var id: ID
+    public var title: LocalizedStringKey
+    public var systemImage: String
+    public var role: LuckTabRole
+    public var badge: String?
+
+    public init(_ id: ID, title: LocalizedStringKey, systemImage: String,
+                role: LuckTabRole = .tab, badge: String? = nil) {
+        self.id = id
+        self.title = title
+        self.systemImage = systemImage
+        self.role = role
+        self.badge = badge
+    }
 }
 
-extension EnvironmentValues {
-    @Entry var luckSearchText: String = ""
-    
-    @Entry var luckTabViewAnimation: Animation = .default // TODO: remove?
-    
-    @Entry var luckIsSlowmo: Bool = false // TODO: this should be global, not LuckTabView-specific!
-}
-
-public enum LuckTabViewStripBehavior: String, CaseIterable, Identifiable, Equatable {
+public enum LuckTabViewStripBehavior: String, CaseIterable, Identifiable {
     public var id: Self { self }
-    
-    // 1. Idle state is expanded mode -> compact mode on search
-    // This is canonical according to leaks / most comparable to current behavior.
-    case CompactOnSearch
-    // 2. Idle state is expanded mode -> compact mode on scroll and search
-    case CompactOnScroll
-    // 3. Idle state is compact mode - expanded mode only on command
-    // As seen on X demo.
-    case CompactAsDefault
-    
-    public static var `default`: Self { CompactAsDefault }
+    case compactOnSearch
+    case compactOnScroll
+    case compactAsDefault
 }
 
-// MARK: - TODO:
-// Adjust animation timings: collapse animation looks a little too fast, can barely see the merging
-// Fun animations based on latest concept: https://www.youtube.com/watch?v=C5OQDhcqKjo
-
-struct LuckTabView<Tab: LuckNavigationDestination>: View {
-    @Namespace private var animNS
-    
-    // MARK: - Tab-related variables
-    private let allTabs: Array<Tab>
-    
-    @State private var _internalSelection: Tab
-           private var _externalSelection: Binding<Tab>? = nil
-    
-    private var _selectionBinding: Binding<Tab> { _externalSelection ?? $_internalSelection }
-    
-    var selection: Tab {
-        get { _selectionBinding.wrappedValue }
-        set { _selectionBinding.wrappedValue = newValue }
-    }
-    
-    // MARK: - Other properties
-    @State var tabStripBehavior: LuckTabViewStripBehavior
-    
-    @State private var isSlowmo = false
-    
-    init(tabType: Tab.Type, tabSelection: Binding<Tab>? = nil,
-         tabStripBehavior: LuckTabViewStripBehavior = .default) {
-        allTabs = tabType.allCases
-        assert(allTabs.count > 0)
-        
-        __internalSelection = State(initialValue: allTabs.first!)
-        _externalSelection = tabSelection
-        
-        self.tabStripBehavior = tabStripBehavior
-        
-        if tabStripBehavior == .CompactAsDefault { isTabStripExpanded = false }
-    }
-    
-    @State private var isTabStripExpanded: Bool = false
-    @State private var searchFieldText: String = ""
-    
-    @State private var safeAreaSize: CGSize = .zero
-    
-    @State private var contentScrollOffset: Double = 0
-    
-    func onContentScrollChanged(offset: Double) {
-        if tabStripBehavior != .CompactOnScroll { return }
-        if selection.isSearch { return }
-        
-        contentScrollOffset = offset
-        isTabStripExpanded = offset <= 0
-    }
-    
-    var body: some View {
-        // MARK: - Tab content
-        TabView(selection: _selectionBinding) {
-            ForEach(allTabs) { tab in
-                tab.view()
-            }
-            .onScrollGeometryChange(for: Double.self, of: { $0.contentOffset.y }, action: { old, new in
-                onContentScrollChanged(offset: new)
-            })
-            // Ensure the content can scroll above the tab bar and its accessories:
-            .safeAreaInset(edge: .bottom) {
-                Color.clear.frame(height: safeAreaSize.height)
-            }
-            .toolbarVisibility(.hidden, for: .tabBar)
-            .environment(\.luckSearchText, searchFieldText)
-        }
-        // MARK: - Tab strip legibility overlay
-        .overlay(alignment: .bottom) { tabStripLegibilityOverlay }
-        // MARK: - Tab strip content
-        .safeAreaInset(edge: .bottom) {
-            VStack {
-                if showDebugBox { debugBox }
-                
-                LuckTabViewStrip(animNS: animNS,
-                                 allTabs: allTabs, selectedTab: _selectionBinding,
-                                 tabStripBehavior: $tabStripBehavior, isExpanded: $isTabStripExpanded,
-                                 searchFieldText: $searchFieldText)
-                .environment(\.luckIsSlowmo, isSlowmo)
-            }
-            .padding(24)
-            // MARK: - Tab strip state animation
-            .animation(.spring(response: 0.4, dampingFraction: 0.83).speed(isSlowmo ? 0.1 : 1), value: isTabStripExpanded)
-            
-            .onChange(of: tabStripBehavior) { oldValue, newValue in
-                isTabStripExpanded = tabStripBehavior != .CompactAsDefault
-            }
-            .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { safeAreaSize = $0 })
-        }
-    }
-    
-    var tabStripLegibilityOverlay: some View {
-        ZStack {
-            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
-                .opacity(0.3)
-            
-            VariableBlurView(maxBlurRadius: 4, direction: .blurredBottomClearTop, startOffset: 0)
-        }
-        .ignoresSafeArea()
-        .allowsHitTesting(false)
-        // NOTE: Because tabStrip and its siblings are in a safeAreaInset, the overlay
-        // ends up automatically accounting for their size and drawing "behind them".
-        // Because of that, this just adds padding:
-        .frame(maxHeight: 32)
-    }
-    
-    // TODO: cleanup
-    @State private var showDebugBox = true
-    var debugBox: some View {
-        VStack(alignment: .leading) {
-            HStack {
-                Text("LuckTabView Debug").font(.footnote).frame(maxWidth: .infinity, alignment: .leading)
-                    .foregroundStyle(.primary).bold()
-                    .opacity(0.76)
-                
-                Toggle(isOn: $showDebugBox, label: {})
-            }
-            
-            HStack {
-                Text("Tab Strip Behavior")
-                Spacer()
-                Picker("Tab Strip Behavior", selection: $tabStripBehavior) {
-                    ForEach(LuckTabViewStripBehavior.allCases) { tab in Text(tab.rawValue) }
-                }
-            }
-            if tabStripBehavior == .CompactOnScroll {
-                Text("Scroll offset (y): \(contentScrollOffset)")
-            }
-            
-            Toggle("Slow Animations (local)", isOn: $isSlowmo)
-                .onChange(of: isSlowmo) { _, newValue in _ValueKeyframeAnimatorSlowMotion = newValue }
-            
-            Toggle("Tab Strip Expanded",      isOn: $isTabStripExpanded)
-        }
-        .font(.system(size: 14))
-        .foregroundStyle(.secondary)
-        .padding()
-        .background(.regularMaterial)
-        .clipShape(.rect(cornerRadius: 12))
-    }
+public enum LuckTabAccessoryPlacement {
+    case expanded
+    case compact
 }
 
-fileprivate struct LuckTabViewStrip<Tab: LuckNavigationDestination>: View {
-    var animNS: Namespace.ID
-    
-    @Environment(\.luckIsSlowmo) private var isSlowmo
-    
-    public var allTabs: Array<Tab>
-    @Binding public var selectedTab: Tab
-    
-    @Binding public var tabStripBehavior: LuckTabViewStripBehavior
-    
-    @Binding public var isExpanded: Bool
-    
-    @Binding    public  var searchFieldText      : String
-    @FocusState private var searchFieldFocusState: Bool
-    
-    @State private var tabSelectionAnimation: Animation = .spring(response: 0.38, dampingFraction: 0.8)
-    @State private var tabStripExpandAnimation: Animation = .spring(response: 0.4, dampingFraction: 0.83)
-    
-    var customTopInset: some View {
-        HStack(spacing: 16) {
-            Image(.AlbumArtwork.paradiseagain)
-                .resizable().aspectRatio(contentMode: .fit)
-                .frame(width: 28, height: 28)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            
-            VStack(alignment: .leading) {
-                Text("Calling On")
-                // Text("Swedish House Mafia")
-            }
-            .font(.system(size: 15))
-            
-            Spacer()
-            
-            Group {
-                Button(action: {}) {
-                    Label("Play / resume", systemImage: "play.fill").labelStyle(.iconOnly)
-                }
-                Button(action: {}) {
-                    Label("Next track", systemImage: "forward.fill").labelStyle(.iconOnly)
-                }
-            }
-            .tint(.primary)
-        }
-        .padding(12)
-        .padding(.horizontal, 4)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background, in: .capsule)
+/// A floating bottom tab bar with the experiment's spring and metaball animation.
+/// Use one to five destinations. Mark at most one as search. Content owns its navigation.
+public struct LuckTabView<Selection: Hashable, Content: View, Accessory: View>: View {
+    private let tabs: [LuckTab<Selection>]
+    @Binding private var selection: Selection
+    private let behavior: LuckTabViewStripBehavior
+    private let searchPrompt: LocalizedStringKey
+    private let externalSearchText: Binding<String>?
+    private let content: (Selection) -> Content
+    private let accessory: (LuckTabAccessoryPlacement) -> Accessory
+
+    @State private var localSearchText = ""
+    @State private var isExpanded: Bool
+    @State private var accessoryHeight: CGFloat = 0
+    @FocusState private var searchFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.luckTabBarReduceMotion) private var requestedReduceMotion
+    @Environment(\.luckTabBarAnimationSpeed) private var animationSpeed
+    @Environment(\.self) private var contentEnvironment
+    @ScaledMetric(relativeTo: .footnote) private var scaledExpandedHeight: CGFloat = 68
+    @ScaledMetric(relativeTo: .body) private var scaledCompactHeight: CGFloat = 52
+
+    public init(tabs: [LuckTab<Selection>], selection: Binding<Selection>,
+                behavior: LuckTabViewStripBehavior = .compactAsDefault,
+                searchText: Binding<String>? = nil,
+                searchPrompt: LocalizedStringKey = "Search",
+                @ViewBuilder content: @escaping (Selection) -> Content,
+                @ViewBuilder accessory: @escaping (LuckTabAccessoryPlacement) -> Accessory) {
+        precondition((1...5).contains(tabs.count), "LuckTabView requires one to five tabs.")
+        precondition(Set(tabs.map(\.id)).count == tabs.count, "Tab IDs must be unique.")
+        precondition(tabs.filter { $0.role == .search }.count <= 1, "Use at most one search tab.")
+        self.tabs = tabs
+        _selection = selection
+        self.behavior = behavior
+        self.searchPrompt = searchPrompt
+        externalSearchText = searchText
+        self.content = content
+        self.accessory = accessory
+        _isExpanded = State(initialValue: behavior != .compactAsDefault &&
+                            tabs.first(where: { $0.id == selection.wrappedValue })?.role != .search)
     }
-    
-    // TODO: custom
-    var tabStripTopContent: some View {
-        #if true
-        customTopInset
-        #else
-        VStack {
-            Text("< accessory view >")
-                .foregroundStyle(.secondary)
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(RoundedRectangle(cornerRadius: 12).fill(.thickMaterial))
-        }
-        #endif
+
+    private var selectedTab: LuckTab<Selection> {
+        tabs.first { $0.id == selection } ?? tabs[0]
     }
-    
-    @State private var compactViewGeo:  CGRect = .zero
-    @State private var expandedViewGeo: CGRect = .zero
-    
-    private var tabStripContentHeight: CGFloat { !isExpanded ? compactViewGeo.height : expandedViewGeo.height }
-    @State private var tabStripBottomOffset: CGFloat = 16 // TODO: revise
-    
-    var body: some View {
-        VStack {
-            tabStripTopContent
-            
-            Color.clear
-                .frame(height: tabStripContentHeight - tabStripBottomOffset)
+
+    private var searchText: Binding<String> { externalSearchText ?? $localSearchText }
+    private var layoutAnimation: Animation? {
+        systemReduceMotion || requestedReduceMotion ? nil :
+            .spring(response: 0.4, dampingFraction: 0.83).speed(max(0.1, animationSpeed))
+    }
+    private var controlsHeight: CGFloat {
+        // NOTE: Reserve the bar's target height, not its animated presentation height.
+        let barHeight = isExpanded ? expandedHeight : compactHeight
+        return barHeight + 16 + (accessoryHeight > 0 ? accessoryHeight + 8 : 0)
+    }
+    private var expandedHeight: CGFloat { min(max(scaledExpandedHeight, 68), 112) }
+    private var compactHeight: CGFloat { min(scaledCompactHeight, 80) }
+    private var validSelection: Binding<Selection> {
+        Binding(get: { selectedTab.id }, set: { selection = $0 })
+    }
+
+    public var body: some View {
+        TabView(selection: validSelection) {
+            ForEach(tabs) { tab in
+                Tab(value: tab.id) {
+                    LuckTabContent(content: content(tab.id)
+                        .environment(\.luckSearchText, searchText.wrappedValue)
+                        .onPreferenceChange(LuckTabScrollPreference.self) { event in
+                            guard tab.id == selection, behavior == .compactOnScroll,
+                                  selectedTab.role != .search, let event else { return }
+                            isExpanded = !event.compact
+                        }, environment: contentEnvironment, bottomInset: controlsHeight)
+                        .animation(layoutAnimation, value: controlsHeight)
+                        .toolbarVisibility(.hidden, for: .tabBar)
+                } label: {
+                    Label(tab.title, systemImage: tab.systemImage)
+                }
+            }
         }
+        .tabViewStyle(.tabBarOnly)
+        .environment(\.luckSearchText, searchText.wrappedValue)
         .overlay(alignment: .bottom) {
-            tabStripView
-                .offset(y: tabStripBottomOffset)
-                .animation(tabStripExpandAnimation.speed(isSlowmo ? 0.1 : 1), value: isExpanded)
-        }
-    }
-    
-    var collapsedViewTabsIcon: String {
-        if selectedTab.isSearch { return "chevron.backward" }
-        return selectedTab.icon
-    }
-    
-    let tabStripViewCoordinateSpace = "luckTabViewStripContent"
-    var tabStripView: some View {
-        ZStack(alignment: .top) { // TODO: no idea why this needs to be top, investigate!
-            compactView
-                .opacity(!isExpanded ? 1 : 0)
-            
-            tabStripMorphingPlatter
-            
-            expandedView
-                .opacity(isExpanded ? 1 : 0)
-        }
-        .padding(.horizontal, 24) // HACK: to prevent clipping during the compact view collapse animation  @PreventClippingOnCollapse
-        .morphContainer() {
-            if !isExpanded { Rectangle().fill(.background) }
-            else           { Rectangle().fill(.thinMaterial) }
-        }
-        .padding(.horizontal, -24) // @PreventClippingOnCollapse
-        
-        .coordinateSpace(name: tabStripViewCoordinateSpace)
-    }
-    
-    struct TabStripPlatterMorphAnimationProps: Equatable {
-        var position: CGPoint
-        var size:     CGSize
-        
-        init(position: CGPoint, size: CGSize) {
-            self.position = position
-            self.size = size
-        }
-        init(rect: CGRect) { self.init(position: rect.origin, size: rect.size) }
-        init() { self.init(rect: .zero) }
-    }
-    
-    @State private var tabStripMorphingAnimProps = TabStripPlatterMorphAnimationProps()
-    var tabStripMorphingPlatter: some View {
-        ZStack {
-            let compactViewAnimProps  = TabStripPlatterMorphAnimationProps(rect: compactViewSearchBarGeo)
-            let expandedViewAnimProps = TabStripPlatterMorphAnimationProps(rect: expandedViewGeo)
-            
-            Spacer()
-                .morphable(shape: .capsule, intensity: 5)
-                .frame(width: tabStripMorphingAnimProps.size.width, height: tabStripMorphingAnimProps.size.height)
-                .offset(x:    tabStripMorphingAnimProps.position.x, y: tabStripMorphingAnimProps.position.y)
-            
-                .valueKeyframeAnimator(properties: $tabStripMorphingAnimProps, trigger: isExpanded) { props in
-                    KeyframeTrack(\.position) {
-                        SpringKeyframe(isExpanded ? compactViewAnimProps.position.add(x: 40) : compactViewAnimProps.position, duration: 0.1, spring: tabExpansionSpring)
-                        SpringKeyframe(isExpanded ? compactViewAnimProps.position.add(x: -10) : compactViewAnimProps.position, duration: 0.05, spring: tabExpansionSpring)
-                        SpringKeyframe(isExpanded ? expandedViewAnimProps.position : compactViewAnimProps.position, spring: tabExpansionSpring)
+            VStack(spacing: accessoryHeight > 0 ? 8 : 0) {
+                // NOTE: The wrapper still reports zero when the accessory becomes EmptyView.
+                VStack(spacing: 0) {
+                    accessory(isExpanded ? .expanded : .compact)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .background {
+                    Color.clear
+                        .onGeometryChange(for: CGFloat.self) { geometry in
+                            geometry.size.height
+                        } action: { height in
+                            accessoryHeight = height
+                        }
+                        .transaction { $0.animation = nil }
+                }
+                LuckTabBar(tabs: tabs, selection: selection, behavior: behavior,
+                           isExpanded: isExpanded, expandedHeight: expandedHeight,
+                           compactHeight: compactHeight, searchText: searchText,
+                           searchPrompt: searchPrompt, searchFocused: $searchFocused,
+                           select: select, expand: expand)
+            }
+            .animation(layoutAnimation, value: isExpanded)
+            .frame(maxWidth: 600)
+            .padding(.horizontal, 24)
+            .padding(.top, 8)
+            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity)
+            .background(alignment: .bottom) {
+                Rectangle().fill(.ultraThinMaterial)
+                    .mask {
+                        LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
                     }
-                    KeyframeTrack(\.size) {
-                        SpringKeyframe(isExpanded ? compactViewAnimProps.size.add(width: -40) : expandedViewAnimProps.size, duration: isExpanded ? 0.15 : 0, spring: tabExpansionSpring)
-                        SpringKeyframe(isExpanded ? expandedViewAnimProps.size : compactViewAnimProps.size, spring: tabExpansionSpring)
-                    }
-                }
-                .onAppear() {
-                    tabStripMorphingAnimProps = .init(rect: compactViewSearchBarGeo)
-                }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-    
-    struct BasicKeyframeAnimProps: Equatable {
-        var offset: CGPoint = .zero
-        var scale:  CGPoint = .init(x: 1, y: 1)
-    }
-    
-    let tabExpansionSpring = Spring(response: 0.6, dampingRatio: 0.8)
-    
-    @State var compactViewSearchBarGeo: CGRect = .zero
-    @State var compactViewTabsButtonAnimProps = BasicKeyframeAnimProps()
-    @State var compactViewSearchBarAnimProps  = BasicKeyframeAnimProps()
-    var compactView: some View {
-        HStack {
-            // TODO: optical alignment: this button should probably be slightly smaller than the search field
-            LuckTabViewStripCompactButton(animNS: animNS, icon: collapsedViewTabsIcon) {
-                searchFieldFocusState = false
-                isExpanded = true
-            }
-            .morphable(shape: .circle)
-            .offset(x: compactViewTabsButtonAnimProps.offset.x)
-            .scaleEffect(x: compactViewTabsButtonAnimProps.scale.x, y: compactViewTabsButtonAnimProps.scale.y)
-            .blur(radius: isExpanded ? 10 : 0)
-            .valueKeyframeAnimator(properties: $compactViewTabsButtonAnimProps, trigger: isExpanded) { props in
-                KeyframeTrack(\.offset) {
-                    let offset = isExpanded ? 150 : 0
-                    SpringKeyframe(.init(x: offset, y: 0), spring: tabExpansionSpring)
-                }
-                KeyframeTrack(\.scale) {
-                    let scale = isExpanded ? CGPoint(x: 0.5, y: 0.5) : CGPoint(x: 1, y: 1)
-                    SpringKeyframe(scale, spring: tabExpansionSpring)
-                }
-            }
-            
-            // MARK: - Search field  @Behavior
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                
-                TextField("Artists, Songs, Lyrics and More", text: $searchFieldText) // TODO: placeholder parameter
-                    .font(.system(size: 14))
-                    .focused($searchFieldFocusState)
-                    .onChange(of: searchFieldFocusState) { oldValue, newValue in
-                        // TODO: kind of hacky:
-                        selectedTab = allTabs.first(where: {$0.isSearch}) ?? selectedTab
-                    }
-            }
-            .padding()
-            .offset(x: compactViewSearchBarAnimProps.offset.x)
-            .scaleEffect(x: compactViewSearchBarAnimProps.scale.x, y: compactViewSearchBarAnimProps.scale.y)
-            .blur(radius: isExpanded ? 10 : 0)
-            .valueKeyframeAnimator(properties: $compactViewSearchBarAnimProps, trigger: isExpanded) { props in
-                KeyframeTrack(\.offset) {
-                    let offset = isExpanded ? 30 : 0
-                    SpringKeyframe(.init(x: offset, y: 0), spring: tabExpansionSpring)
-                }
-                KeyframeTrack(\.scale) {
-                    let scale = isExpanded ? CGPoint(x: 0.8, y: 0.9) : CGPoint(x: 1, y: 1)
-                    SpringKeyframe(scale, spring: tabExpansionSpring)
-                }
-            }
-            .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named(tabStripViewCoordinateSpace)) }, action: { compactViewSearchBarGeo = $0 })
-        }
-        .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named(tabStripViewCoordinateSpace)) }, action: { compactViewGeo = $0 })
-        .padding(.top)
-    }
-    
-    @State var expandedViewTabButtonAnimProps = BasicKeyframeAnimProps()
-    var expandedView: some View {
-        HStack(spacing: 0) {
-            let tabs = allTabs
-            // Do not show the search tab when it isn't necessary (based on behavior mode):
-            // Exception in CompactAsDefault mode to show it is When the search box is focused and we are on the search tab.
-                .filter { tabStripBehavior != .CompactAsDefault || selectedTab.isSearch || !$0.isSearch }
-            
-            // TODO: animate indivudual tabs on isExpanded!
-            ForEach(Array(tabs.enumerated()), id: \.element) { index, tab in
-                let fIndex = CGFloat(index)
-                
-                let scaleValue  = max(0, 1 - (1 - expandedViewTabButtonAnimProps.scale.x) * sqrt(fIndex+1))
-                let offsetValue = expandedViewTabButtonAnimProps.offset.x * pow(fIndex+1, isExpanded ? 2.05 : 2.3)
-                let blurValue   = (1 - expandedViewTabButtonAnimProps.scale.x) * 10
-                
-                LuckTabViewStripButton(
-                    animNS: animNS,
-                    isSelected: tab == selectedTab,
-                    icon: tab.icon, title: tab.rawValue as! String,
-                    action: { stripSelectTabAction(tab: tab) }
-                )
-                .scaleEffect(scaleValue)
-                .offset(x: offsetValue)
-                .blur(radius: blurValue)
-                .onChange(of: selectedTab, onSelectedTabChanged)
-                // @Behavior  smooth selection indicator position change when not collapsing:
-                // FIXME: The SW keyboard causes some weird visuals as collapsedView sticks to the top
-                .animation(tabStripBehavior != .CompactAsDefault && !searchFieldFocusState ? tabSelectionAnimation.speed(isSlowmo ? 0.1 : 1) : nil, value: selectedTab)
+                    .padding(.top, -32)
+                    .ignoresSafeArea(edges: .bottom)
+                    .allowsHitTesting(false)
             }
         }
-        .offset(x: tabStripMorphingAnimProps.position.x)
-        .padding(4)
-        .valueKeyframeAnimator(properties: $expandedViewTabButtonAnimProps, trigger: isExpanded, delay: isExpanded ? 0.05 : 0) { props in
-            KeyframeTrack(\.scale) {
-                let start = isExpanded ? 0 : 1
-                let end   = isExpanded ? 1 : 0
-                MoveKeyframe  (.init(x: start, y: start))
-                SpringKeyframe(.init(x: end,   y: end), spring: tabExpansionSpring)
-            }
-            KeyframeTrack(\.offset) {
-                let start = isExpanded ? -30 : 0
-                let end   = isExpanded ? 0 : -10
-                MoveKeyframe  (.init(x: start, y: start))
-                SpringKeyframe(.init(x: end,   y: end), spring: Spring(response: 0.6, dampingRatio: 0.85))
-            }
+        .onChange(of: selection) { _, _ in
+            if selectedTab.role == .search || behavior == .compactAsDefault { isExpanded = false }
+            if selectedTab.role != .search { searchFocused = false }
         }
-        .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named(tabStripViewCoordinateSpace)) }, action: { expandedViewGeo = $0 })
-    }
-    
-    func stripSelectTabAction(tab: Tab) {
-        // For collapsing when tapping the same tab in CompactAsDefault behavior mode:
-        if tabStripBehavior == .CompactAsDefault && selectedTab == tab {
+        .onChange(of: searchFocused) { _, focused in
+            guard focused, let search = tabs.first(where: { $0.role == .search }) else { return }
+            selection = search.id
             isExpanded = false
         }
-        
-        // NOTE: We don't collapse the tab strip on tab change here because of layout timing.
-        // It is instead done in expandedView as part of an .onChange(of: selectedTab)
-        
-        searchFieldFocusState = tab.isSearch
-        if tab.isSearch { isExpanded = false }
-        
-        selectedTab = tab
+        .onChange(of: behavior) { _, new in
+            isExpanded = new != .compactAsDefault && selectedTab.role != .search
+        }
+        .onChange(of: tabs.map(\.id), initial: true) { _, ids in
+            if !ids.contains(selection) { selection = tabs[0].id }
+        }
+        .onChange(of: tabs.first(where: { $0.role == .search })?.id) { _, _ in
+            searchFocused = false
+        }
     }
-    
-    func onSelectedTabChanged() {
-        // Collapse when in CompactAsDefault behavior mode on tab change:
-        if tabStripBehavior == .CompactAsDefault { isExpanded = false }
-        
-        // Dismiss when selecting search tab, unfocus search field otherwise:
-        if selectedTab.isSearch { isExpanded = false }
-        else                    { searchFieldFocusState = false }
+
+    private func select(_ id: Selection) {
+        selection = id
+        let isSearch = tabs.first { $0.id == id }?.role == .search
+        if isSearch || behavior == .compactAsDefault { isExpanded = false }
+        searchFocused = isSearch
     }
-    
-    // TODO: move away!
-    // MARK: - Light border
-    let gradientStops: [Gradient.Stop] = {
-        // Define how many stops you want. We'll use 4 to mimic the original.
-        let count = 4
-        // Generate random locations between 0 and 1, then sort them to ensure proper ordering.
-        let locations = (0..<count).map { _ in CGFloat.random(in: 0...1) }.sorted()
-        
-        // Define opacity ranges for each stop to mimic light intensity variation.
-        // You can adjust these ranges as needed.
-        let opacities: [Double] = [
-            Double.random(in: 0.15...0.2), // Dim light.
-            Double.random(in: 0.2...0.25), // Slight glow.
-            Double.random(in: 0.25...0.35),  // Moderate intensity.
-            Double.random(in: 0.35...0.45), // Bright, intense light.
-        ]
-        
-        // Pair the sorted locations with their corresponding opacities.
-        return zip(locations, opacities).map { Gradient.Stop(color: Color.white.opacity($1), location: $0) }
-    }()
-    
-    var lightBorder: some ShapeStyle {
-        LinearGradient(
-            stops: gradientStops,
-            startPoint: .topTrailing,
-            endPoint: .bottom
-        )
-        .blendMode(.overlay)
+
+    private func expand() {
+        searchFocused = false
+        isExpanded = true
     }
 }
 
-#Preview {
-    ContentView()
+// NOTE: iPad's native tab controller discards SwiftUI's surrounding bottom inset.
+// A destination hosting controller passes the reserved space through UIKit's safe area,
+// preserving full-size scrolling behind the controls and callers' own content margins.
+private struct LuckTabContent<Content: View>: View, Animatable {
+    let content: Content
+    let environment: EnvironmentValues
+    var bottomInset: CGFloat
+    private let contentVersion = UUID()
+
+    init(content: Content, environment: EnvironmentValues, bottomInset: CGFloat) {
+        self.content = content
+        self.environment = environment
+        self.bottomInset = bottomInset
+    }
+
+    var animatableData: CGFloat {
+        get { bottomInset }
+        set { bottomInset = newValue }
+    }
+
+    var body: some View {
+        LuckTabHostingController(content: content.environment(\.self, environment),
+                                 bottomInset: bottomInset, contentVersion: contentVersion)
+    }
+}
+
+private struct LuckTabHostingController<Content: View>: UIViewControllerRepresentable {
+    let content: Content
+    let bottomInset: CGFloat
+    let contentVersion: UUID
+
+    func makeUIViewController(context: Context) -> UIHostingController<LuckTabHostedContent<Content>> {
+        let controller = UIHostingController(rootView: LuckTabHostedContent(coordinator: context.coordinator))
+        controller.view.backgroundColor = .clear
+        controller.additionalSafeAreaInsets.bottom = bottomInset
+        return controller
+    }
+
+    func updateUIViewController(_ controller: UIHostingController<LuckTabHostedContent<Content>>, context: Context) {
+        // NOTE: Animation copies retain the version; only new parent inputs update content.
+        if context.coordinator.contentVersion != contentVersion {
+            let coordinator = context.coordinator
+            let transaction = context.transaction
+            let content = content
+            let version = contentVersion
+            coordinator.contentVersion = version
+            // NOTE: Publish after the representable update, preserving the caller's transaction.
+            DispatchQueue.main.async {
+                guard coordinator.contentVersion == version else { return }
+                withTransaction(transaction) {
+                    coordinator.content = content
+                }
+            }
+        }
+        controller.additionalSafeAreaInsets.bottom = bottomInset
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(content: content, contentVersion: contentVersion)
+    }
+
+    final class Coordinator: ObservableObject {
+        @Published var content: Content
+        var contentVersion: UUID
+
+        init(content: Content, contentVersion: UUID) {
+            self.content = content
+            self.contentVersion = contentVersion
+        }
+    }
+}
+
+private struct LuckTabHostedContent<Content: View>: View {
+    @ObservedObject var coordinator: LuckTabHostingController<Content>.Coordinator
+
+    var body: some View { coordinator.content }
+}
+
+public extension LuckTabView where Accessory == EmptyView {
+    init(tabs: [LuckTab<Selection>], selection: Binding<Selection>,
+         behavior: LuckTabViewStripBehavior = .compactAsDefault,
+         searchText: Binding<String>? = nil, searchPrompt: LocalizedStringKey = "Search",
+         @ViewBuilder content: @escaping (Selection) -> Content) {
+        self.init(tabs: tabs, selection: selection, behavior: behavior,
+                  searchText: searchText, searchPrompt: searchPrompt, content: content,
+                  accessory: { _ in EmptyView() })
+    }
+}
+
+public extension EnvironmentValues {
+    /// Also available when a caller lets LuckTabView own the search query.
+    @Entry var luckSearchText = ""
+    /// Disable the custom choreography in addition to the system Reduce Motion setting.
+    @Entry var luckTabBarReduceMotion = false
+    /// A local speed for inspecting the animation. Values below 0.1 are clamped.
+    @Entry var luckTabBarAnimationSpeed: Double = 1
+}
+
+private struct LuckTabScrollEvent: Equatable {
+    var bucket: Int
+    var compact: Bool
+}
+
+private struct LuckTabScrollPreference: PreferenceKey {
+    static var defaultValue: LuckTabScrollEvent? { nil }
+    static func reduce(value: inout LuckTabScrollEvent?, nextValue: () -> LuckTabScrollEvent?) {
+        value = nextValue() ?? value
+    }
+}
+
+private struct LuckTabScrollTracking: ViewModifier {
+    @State private var event: LuckTabScrollEvent?
+
+    func body(content: Content) -> some View {
+        content
+            .onScrollGeometryChange(for: Int?.self) { geometry in
+                let offset = geometry.contentOffset.y + geometry.contentInsets.top
+                let maximum = max(0, geometry.contentSize.height + geometry.contentInsets.top +
+                                  geometry.contentInsets.bottom - geometry.containerSize.height)
+                // NOTE: Ignore bounce-back samples outside the content's scrollable range.
+                guard offset >= 0, offset <= maximum else { return nil }
+                return Int(offset / 16)
+            } action: { old, new in
+                guard let old, let new else { return }
+                event = LuckTabScrollEvent(bucket: new, compact: new > 0 && new > old)
+            }
+            .preference(key: LuckTabScrollPreference.self, value: event)
+    }
+}
+
+public extension View {
+    /// Attach to the destination's primary vertical ScrollView or List to enable
+    /// compactOnScroll. Downward scrolling minimizes; upward scrolling expands.
+    func luckTabBarScrollTracking() -> some View {
+        modifier(LuckTabScrollTracking())
+    }
 }

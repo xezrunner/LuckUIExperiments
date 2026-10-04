@@ -2,22 +2,19 @@
 #pragma once
 
 #include <metal_stdlib>
-#include <SwiftUI/SwiftUI_Metal.h>
 using namespace metal;
 
-enum ShapeType : int8_t {
+enum ShapeType {
     Circle = 0,
     Capsule = 1,
     RoundedRectangle = 2
 };
 
 struct Entity {
-    ShapeType shape_type;
-    
-    float2 position;
-    float2 size;
-    float  rounded_rectangle_radius;
-    
-    float intensity;
+    // NOTE: Origin x/y and size width/height, all in points.
+    float4 bounds;
+    // NOTE: Shape tag, corner radius, union intensity, and reserved zero padding.
+    float4 parameters;
 };
 
+static_assert(sizeof(Entity) == 32, "Entity must match SDFGPUEntity's two SIMD4<Float> values");

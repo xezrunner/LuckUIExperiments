@@ -16,17 +16,9 @@ enum SDFShapeType: Equatable {
             case .roundedRectangle: 2
         }
     }
-    
-    static func name(`for`: RawValue, roundedRectangleRadius: Float = 0) -> String { // for debugging
-        switch `for` {
-            case 0:  "circle (0)"
-            case 1:  "capsule (1)"
-            case 2:  "roundedRectangle (2)"
-            default: "(???)"
-        }
-    }
 }
 
+// NOTE: Position is the top-left origin in mask-local points; radius and intensity are also in points.
 struct SDFMorphableEntity: Equatable {
     var shapeType: SDFShapeType.RawValue
     
@@ -50,70 +42,98 @@ extension SDFMorphableEntity {
         
         self.intensity = intensity
     }
-    
-    internal static var `default` = SDFMorphableEntity(shapeType: .circle, position: .zero, size: .zero, intensity: 0)
+}
+
+// NOTE: Two float4 values match Entity in metaball_sdf_common.h without Swift enum or padding bytes.
+private struct SDFGPUEntity {
+    var bounds: SIMD4<Float>
+    var parameters: SIMD4<Float>
+}
+
+struct SDFMorphMask: View {
+    var entities: [SDFMorphableEntity]
+
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        Rectangle()
+            .fill(ShaderLibrary.metaball_sdf(.data(entityData), .float(1 / displayScale)))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    private var entityData: Data {
+        var gpuEntities: [SDFGPUEntity] = []
+        gpuEntities.reserveCapacity(entities.count)
+        for entity in entities {
+            guard entity.position.x.isFinite, entity.position.y.isFinite,
+                  entity.size.x.isFinite, entity.size.y.isFinite,
+                  entity.size.x > 0, entity.size.y > 0 else { continue }
+
+            let maxRadius = min(entity.size.x, entity.size.y) * 0.5
+            let radius = entity.roundedRectangleRadius.isFinite
+                ? min(max(entity.roundedRectangleRadius, 0), maxRadius) : 0
+            let intensity = entity.intensity.isFinite ? max(entity.intensity, 0) : 0
+            gpuEntities.append(SDFGPUEntity(
+                bounds: SIMD4(entity.position.x, entity.position.y, entity.size.x, entity.size.y),
+                parameters: SIMD4(Float(entity.shapeType), radius, intensity, 0)
+            ))
+        }
+        return gpuEntities.withUnsafeBytes { Data($0) }
+    }
+}
+
+struct SDFMorphableBounds {
+    var shape: SDFShapeType
+    var intensity: Float
+    var anchor: Anchor<CGRect>
 }
 
 struct SDFMorphableInfoPrefKey: PreferenceKey {
-    static var defaultValue: [SDFMorphableEntity] = []
+    static var defaultValue: [SDFMorphableBounds] { [] }
     static func reduce(value: inout Value, nextValue: () -> Value) { value.append(contentsOf: nextValue()) }
 }
 
 struct SDFMorphableViewModifier: ViewModifier {
     public static let DEFAULT_INTENSITY: Float = 15
     
-    @State var shape: SDFShapeType
-    @State var intensity: Float = DEFAULT_INTENSITY
-    
-    @State private var entity: SDFMorphableEntity = .default
+    var shape: SDFShapeType
+    var intensity: Float = DEFAULT_INTENSITY
     
     func body(content: Content) -> some View {
         content
-            .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named("SDFMorphContainer")) }, action: {
-                entity = .init(shapeType: shape, position: $0.origin, size: $0.size, intensity: intensity)
-            })
-            .preference(key: SDFMorphableInfoPrefKey.self, value: [entity])
+            .anchorPreference(key: SDFMorphableInfoPrefKey.self, value: .bounds) {
+                [SDFMorphableBounds(shape: shape, intensity: intensity, anchor: $0)]
+            }
     }
 }
 
 struct SDFMorphContainer<Content: View, Background: View>: View {
-    @State internal var entities: [SDFMorphableEntity] = []
-    
     @ViewBuilder var content:    () -> Content
     @ViewBuilder var background: () -> Background
     
-    @State internal var contentGeoInfo: CGRect = .zero
-    
-    @State internal var showDebug = false
-    
     var body: some View {
-        ZStack {
-            content()
-                .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .local) }, action: { contentGeoInfo = $0 })
-                .onPreferenceChange(SDFMorphableInfoPrefKey.self) { newValue in
-                    entities = newValue
+        content()
+            .backgroundPreferenceValue(SDFMorphableInfoPrefKey.self) { bounds in
+                GeometryReader { geometry in
+                    background()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .mask {
+                            SDFMorphMask(entities: bounds.map { item in
+                                let frame = geometry[item.anchor]
+                                return SDFMorphableEntity(
+                                    shapeType: item.shape,
+                                    position: frame.origin,
+                                    size: frame.size,
+                                    intensity: item.intensity
+                                )
+                            })
+                        }
+                        .allowsHitTesting(false)
                 }
-                .coordinateSpace(name: "SDFMorphContainer")
-        }
-        .background {
-            background()
-                .mask {
-                    Rectangle()
-                        .layerEffect(
-                            ShaderLibrary.metaball_sdf(.float2(contentGeoInfo.size.width, contentGeoInfo.size.height), .float(Float(entities.count)),
-                                                       .data(Data(bytes: entities, count: entities.count * MemoryLayout<SDFMorphableEntity>.stride)),
-                            )
-                            , maxSampleOffset: .zero)
-                }
-        }
-#if DEBUG
-        .popover(isPresented: $showDebug, arrowEdge: .bottom) {
-            debugView
-                .presentationBackground(.gray.opacity(0.3))
-                .presentationDetents([.fraction(0.99)])
-        }
-        .onLongPressGesture(minimumDuration: 2) { showDebug.toggle() }
-#endif
+            }
+            // NOTE: A nested container consumes its anchors so outer containers render only their own shapes.
+            .transformPreference(SDFMorphableInfoPrefKey.self) { $0.removeAll() }
     }
 }
 

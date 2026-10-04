@@ -3,48 +3,41 @@
 import SwiftUI
 
 #if DEBUG
-extension SDFMorphContainer {
-    internal var debugView: some View {
-        VStack(alignment: .leading) {
-            Group {
-                Text("Entities (.morphable()) (\(entities.count)):")
-                List(0..<entities.count, id: \.self) { index in
-                    let it = entities[index]
-                    
-                    Section("Entity #\(index)") {
-                        Stepper("shape: \(SDFShapeType.name(for: entities[index].shapeType))",
-                                value: Binding(get: { it.shapeType }, set: { entities[index].shapeType = $0 }), step: 1)
-                        
-                        Text("pos:  [\(it.position.x); \(it.position.y)]")
-                        Text("size: [\(it.size.x); \(it.size.y)]")
-                        
-                        if it.shapeType == 2 {
-                            Stepper("radius: \(it.roundedRectangleRadius)",
-                                    value: Binding(get: { it.roundedRectangleRadius }, set: { entities[index].roundedRectangleRadius = $0 }),
-                                    in: 0...100, step: 1)
-                        }
-                        
-                        Stepper("intensity: \(it.intensity)",
-                                value: Binding(get: { it.intensity }, set: { entities[index].intensity = $0 }),
-                                in: 0...100, step: 1)
-                    }
-                    .listRowBackground(Color.primary.opacity(0.15))
-                }
-                .scrollContentBackground(.hidden)
-                .listSectionSpacing(0)
-                .listStyle(.plain)
-                
-                Divider()
-                
-                Text("SDFMorphableEntity stride: \(MemoryLayout<SDFMorphableEntity>.stride)")
-                Text("SIMD2<Float> stride: \(MemoryLayout<SIMD2<Float>>.stride)")
-                Text("Float stride: \(MemoryLayout<Float>.stride)")
+#Preview("Explicit SDF mask") {
+    @Previewable @State var intensity: Float = 15
+
+    VStack {
+        Color.blue
+            .mask {
+                SDFMorphMask(entities: [
+                    .init(shapeType: .circle, position: .init(x: 12, y: 20),
+                          size: .init(width: 60, height: 60), intensity: intensity),
+                    .init(shapeType: .capsule, position: .init(x: 78, y: 20),
+                          size: .init(width: 60, height: 60), intensity: intensity),
+                    .init(shapeType: .roundedRectangle(radius: 100), position: .init(x: 144, y: 20),
+                          size: .init(width: 100, height: 60), intensity: intensity)
+                ])
             }
+            .frame(width: 256, height: 100)
+
+        Slider(value: $intensity, in: 0...60)
+        Text("Intensity: \(intensity)")
             .monospaced()
-            .foregroundStyle(.primary)
-            .font(.system(size: 13))
-        }
-        .padding()
     }
+    .padding()
+}
+
+#Preview("Nested SDF containers") {
+    HStack(spacing: 16) {
+        Color.clear
+            .frame(width: 60, height: 60)
+            .morphable(shape: .circle)
+        Color.clear
+            .frame(width: 100, height: 60)
+            .morphable(shape: .capsule)
+            .morphContainer(background: .blue)
+    }
+    .padding(20)
+    .morphContainer(background: .orange)
 }
 #endif
