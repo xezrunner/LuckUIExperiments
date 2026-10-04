@@ -26,6 +26,150 @@ final class LuckTabViewUITests: XCTestCase {
         XCTAssertTrue(app.buttons["luck.tab.radio"].isSelected)
     }
 
+    func testCompactDragCommitsLibraryWithAndWithoutAnimation() {
+        for reduceMotion in [true, false] {
+            launchDemo(reduceMotion: reduceMotion)
+            assertCompactBar()
+            let circle = app.buttons["luck.tabs.expand"]
+            // NOTE: Hold through expansion so the animated strip reaches its final hit geometry before release.
+            circle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(forDuration: 0.1, thenDragTo: compactLibraryCoordinate(),
+                       withVelocity: .slow, thenHoldForDuration: reduceMotion ? 0 : 1)
+            assertDestination("Library")
+            assertCompactBar()
+            tap(circle)
+            XCTAssertTrue(app.buttons["luck.tab.library"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["luck.tab.library"].isSelected)
+            XCTAssertFalse(app.buttons["luck.tab.home"].isSelected)
+            XCTAssertFalse(app.buttons["luck.tab.search"].exists)
+        }
+    }
+
+    func testExpandedDragCommitsInBothDirectionsAndRightToLeftLayout() {
+        for rightToLeft in [false, true] {
+            launchDemo(behavior: "Compact on search", rightToLeft: rightToLeft)
+            let home = app.buttons["luck.tab.home"]
+            let library = app.buttons["luck.tab.library"]
+            XCTAssertTrue(home.waitForExistence(timeout: 5))
+            XCTAssertTrue(library.waitForExistence(timeout: 5))
+            XCTAssertEqual(home.frame.midX > library.frame.midX, rightToLeft)
+
+            home.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(forDuration: 0.1,
+                       thenDragTo: library.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
+            assertDestination("Library")
+            XCTAssertTrue(library.isSelected)
+            XCTAssertFalse(home.isSelected)
+            XCTAssertFalse(app.buttons["luck.tabs.expand"].exists)
+
+            library.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(forDuration: 0.1,
+                       thenDragTo: home.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
+            assertDestination("Home")
+            XCTAssertTrue(home.isSelected)
+            XCTAssertFalse(library.isSelected)
+        }
+    }
+
+    func testReleaseAboveStripCancelsCompactAndExpandedDrags() {
+        launchDemo()
+        assertCompactBar()
+        let outside = compactLibraryCoordinate().withOffset(CGVector(dx: 0, dy: -150))
+        // NOTE: The diagonal travels farther horizontally than vertically so the pan recognizes before leaving the strip.
+        app.buttons["luck.tabs.expand"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: outside)
+        assertDestination("Home")
+        let home = app.buttons["luck.tab.home"]
+        let library = app.buttons["luck.tab.library"]
+        XCTAssertTrue(home.waitForExistence(timeout: 5), "The cancelled compact drag must have expanded the strip")
+        XCTAssertTrue(library.waitForExistence(timeout: 5))
+        XCTAssertTrue(home.isSelected)
+        XCTAssertFalse(library.isSelected)
+
+        home.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1,
+                   thenDragTo: library.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                    .withOffset(CGVector(dx: 0, dy: -150)))
+        assertDestination("Home")
+        XCTAssertTrue(home.isSelected)
+        XCTAssertFalse(library.isSelected)
+
+        home.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1,
+                   thenDragTo: library.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
+        assertDestination("Library")
+        assertCompactBar()
+    }
+
+    func testSearchDragUsesFiveSlotsAndPreservesQuery() {
+        launchDemo(behavior: "Compact on search")
+        let home = app.buttons["luck.tab.home"]
+        let searchTab = app.buttons["luck.tab.search"]
+        XCTAssertTrue(home.waitForExistence(timeout: 5))
+        XCTAssertTrue(searchTab.waitForExistence(timeout: 5))
+        let library = app.buttons["luck.tab.library"]
+        let libraryX = library.frame.midX
+        home.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1,
+                   thenDragTo: searchTab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
+        assertDestination("Search")
+        assertCompactBar()
+        let search = app.textFields["luck.search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        search.typeText("Redlight")
+
+        let circle = app.buttons["luck.tabs.expand"]
+        // NOTE: Keep the finger at its original height while expansion dismisses the keyboard.
+        let target = app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: libraryX - app.frame.minX, dy: circle.frame.midY - app.frame.minY))
+        circle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: target)
+        assertDestination("Library")
+        XCTAssertTrue(library.waitForExistence(timeout: 5))
+        XCTAssertTrue(library.isSelected)
+        XCTAssertFalse(home.isSelected)
+        XCTAssertTrue(searchTab.exists)
+        XCTAssertFalse(searchTab.isSelected)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(search.waitForNonExistence(timeout: 5))
+        selectTab("search")
+        assertDestination("Search")
+        XCTAssertEqual(search.value as? String, "Redlight")
+    }
+
+    func testAccessibilityIndicatorDragsWhileOtherTabsScroll() {
+        continueAfterFailure = false
+        app.launchArguments = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launch()
+        tap(app.buttons["luck.tabs.expand"])
+        let home = app.buttons["luck.tab.home"]
+        let new = app.buttons["luck.tab.new"]
+        XCTAssertTrue(new.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(home.frame.width, 150, "This test must exercise the scrolling accessibility layout")
+        let origin = app.coordinate(withNormalizedOffset: .zero)
+        // NOTE: Target the visible portion of a partially clipped tab.
+        let visibleNew = new.frame.intersection(app.frame.insetBy(dx: 24, dy: 0))
+        XCTAssertFalse(visibleNew.isNull)
+        home.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1,
+                   thenDragTo: origin.withOffset(CGVector(dx: visibleNew.midX, dy: visibleNew.midY)))
+        assertCompactBar()
+        tap(app.buttons["luck.tabs.expand"])
+        XCTAssertTrue(new.waitForExistence(timeout: 5))
+        XCTAssertTrue(new.isSelected)
+
+        let radio = app.buttons["luck.tab.radio"]
+        let visibleRadio = radio.frame.intersection(app.frame.insetBy(dx: 24, dy: 0))
+        XCTAssertFalse(visibleRadio.isNull)
+        let start = origin.withOffset(CGVector(dx: visibleRadio.midX, dy: visibleRadio.midY))
+        let end = origin.withOffset(CGVector(dx: 48, dy: visibleRadio.midY))
+        start.press(forDuration: 0.1, thenDragTo: end)
+        XCTAssertTrue(app.buttons["luck.tab.library"].isHittable)
+        XCTAssertTrue(new.isSelected, "Scrolling from an unselected tab must not commit a selection")
+        XCTAssertFalse(app.buttons["luck.tabs.expand"].exists)
+    }
+
     func testIdleCollapseMovesBeforeReachingCompactPosition() {
         continueAfterFailure = false
         app.launch()
@@ -197,13 +341,13 @@ final class LuckTabViewUITests: XCTestCase {
         XCTAssertFalse(app.buttons["luck.tabs.expand"].exists)
     }
 
-    private func launchDemo(behavior: String? = nil, rightToLeft: Bool = false) {
+    private func launchDemo(behavior: String? = nil, rightToLeft: Bool = false, reduceMotion: Bool = true) {
         continueAfterFailure = false
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
         editSettings {
             tap(app.switches["Live content"])
-            tap(app.switches["Reduce motion"])
+            if reduceMotion { tap(app.switches["Reduce motion"]) }
             if let behavior { choose("Bar behavior", option: behavior) }
             if rightToLeft { tap(app.switches["Right to left"]) }
         }
@@ -226,6 +370,15 @@ final class LuckTabViewUITests: XCTestCase {
 
     private func selectTab(_ id: String) {
         tap(app.buttons["luck.tab.\(id)"])
+    }
+
+    private func compactLibraryCoordinate() -> XCUICoordinate {
+        // NOTE: Compact tabs have no accessible frames; target their expanded slots inside the public bar's margins.
+        let width = min(app.frame.width - 48, 600)
+        let cellWidth = (width - 8) / 4
+        let x = app.frame.width / 2 - width / 2 + 4 + 3.5 * cellWidth
+        let y = app.buttons["luck.tabs.expand"].frame.midY - app.frame.minY
+        return app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x, dy: y))
     }
 
     private func assertDestination(_ title: String, file: StaticString = #filePath, line: UInt = #line) {

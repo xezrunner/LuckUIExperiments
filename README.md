@@ -41,6 +41,8 @@ struct AppTabs: View {
 
 Use one to five tabs with unique IDs and at most one `.search` role. Keep IDs stable when changing titles or badges. Removing the selected destination selects the first remaining tab. Search is optional; without it, the compact capsule shows the selected title and expands the tabs when tapped.
 
+Drag horizontally from the compact circle to open the tabs, or drag across the expanded strip. The indicator follows your finger; releasing selects the nearest tab. Moving away vertically before releasing cancels selection and leaves the strip open. At accessibility text sizes, drag the selected indicator to select another tab; swipe other tabs to scroll the row.
+
 | Behavior | Presentation |
 | --- | --- |
 | `.compactAsDefault` | Starts compact and compacts after selecting a tab. Search stays in the compact field, so the expanded strip omits its redundant button unless Search is selected. |
@@ -69,7 +71,7 @@ To use the component in another app target, copy the three files in `Controls/`,
 
 ## Metaballs and animation
 
-One `KeyframeAnimator` supplies the interpolated geometry for the circle, capsule, icons, search field, and staggered labels. Its initial frame stays fixed for the lifetime of the bar, so changing the target preserves in-flight motion. The tab mask receives those same values directly, avoiding a geometry-preference → state → layout loop on every frame. Selection has a separate short spring when the strip remains expanded.
+An active-only display link samples a SwiftUI `KeyframeTimeline` for the circle, capsule, icons, search field, and staggered labels. Interrupted transitions restart from the presented frame and velocity. The tab mask receives those values directly. The display link requests 120 Hz and stops when the animation finishes; the system controls the actual refresh rate. The selection indicator follows drag input directly and uses a short spring when released.
 
 `SDFMorphMask` draws circles, capsules, and rounded rectangles using signed distances and a smooth union in Metal. It has an explicit 32-byte entity format, validates geometry before upload, and antialiases the contour using pixel derivatives. It does not need blend modes, blurred alpha thresholds, or layer texture samples to join shapes.
 
@@ -92,7 +94,7 @@ The screenshot's `CASDFLayer`, `CASDFElementLayer`, and `CASDFFillEffect` are pr
 
 ## Checks and boundaries
 
-Run the shared scheme's UI tests on an iOS simulator. They cover animated expansion/collapse, selection bindings, independent destination state and navigation, search focus and query retention, hidden controls, removing selected tabs/accessories, bottom-content clearance, bounce handling, and scroll compaction in right-to-left layout.
+Run the shared scheme's UI tests on an iOS simulator. They cover animated expansion/collapse, drag selection and cancellation, selection bindings, independent destination state and navigation, search focus and query retention, hidden controls, removing selected tabs/accessories, bottom-content clearance, bounce handling, and scroll compaction in right-to-left layout.
 
 ```sh
 python3 Tests/check-animation.py

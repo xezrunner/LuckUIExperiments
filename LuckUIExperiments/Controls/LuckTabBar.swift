@@ -15,7 +15,9 @@ struct LuckTabBar<Selection: Hashable>: View {
     let expand: () -> Void
 
     @State private var motion: LuckTabBarMotion
-    @Namespace private var selectionNamespace
+    @State private var dragLocation: CGPoint?
+    @State private var dragOriginFrame: CGRect = .zero
+    @State private var tabRowFrame: CGRect = .zero
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.luckTabBarReduceMotion) private var requestedReduceMotion
     @Environment(\.luckTabBarAnimationSpeed) private var animationSpeed
@@ -57,16 +59,43 @@ struct LuckTabBar<Selection: Hashable>: View {
     var body: some View {
         GeometryReader { geometry in
             strip(frame: motion.frame, width: geometry.size.width)
+                // NOTE: The recognizer must outlive the compact button as expansion removes it.
+                .gesture(LuckTabDragGesture(
+                    canBegin: { point in canBeginDrag(at: point, bounds: geometry.frame(in: .global)) },
+                    changed: { point, began in
+                        guard began || dragLocation != nil else { return }
+                        withTransaction(Transaction(animation: nil)) {
+                            if began { dragOriginFrame = geometry.frame(in: .global) }
+                            dragLocation = point
+                        }
+                        if !isExpanded { expand() }
+                    },
+                    ended: { point in endDrag(at: point) }))
+                .onChange(of: geometry.size.width) { _, _ in cancelDrag() }
         }
-        .onChange(of: isExpanded) { _, _ in animate() }
+        .onChange(of: selection) { _, _ in cancelDrag() }
+        .onChange(of: visibleTabs.map(\.id)) { _, _ in cancelDrag() }
+        .onChange(of: behavior) { _, _ in cancelDrag() }
+        .onChange(of: layoutDirection) { _, _ in cancelDrag() }
+        .onChange(of: dynamicTypeSize) { _, _ in cancelDrag() }
+        .onChange(of: isExpanded) { _, expanded in
+            if !expanded { cancelDrag() }
+            animate()
+        }
         .onChange(of: reduceMotion) { _, reduced in
             if reduced { motion.settle(at: LuckTabBarFrame(expanded: isExpanded)) }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active { motion.finish() }
+            if phase != .active {
+                cancelDrag()
+                motion.finish()
+            }
         }
         .onAppear { motion.settle(at: LuckTabBarFrame(expanded: isExpanded)) }
-        .onDisappear { motion.finish() }
+        .onDisappear {
+            cancelDrag()
+            motion.finish()
+        }
         .frame(height: isExpanded ? expandedHeight : compactHeight)
         .animation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.83).speed(speed), value: isExpanded)
     }
@@ -226,11 +255,15 @@ struct LuckTabBar<Selection: Hashable>: View {
     }
 
     private func tabButtons(frame: LuckTabBarFrame, width: CGFloat) -> some View {
-        HStack(spacing: 0) {
+        let cellWidth = (width - 8) / CGFloat(visibleTabs.count)
+        let selectedIndex = CGFloat(visibleTabs.firstIndex { $0.id == selection } ?? 0)
+        let position = dragLocation.map { dragPosition(at: $0) } ?? selectedIndex
+        let preview = Int(position.rounded())
+        return HStack(spacing: 0) {
             ForEach(Array(visibleTabs.enumerated()), id: \.element.id) { index, tab in
                 let order = CGFloat(index + 1)
                 LuckTabViewStripButton(tab: tab, isSelected: tab.id == selection,
-                                      namespace: selectionNamespace) { select(tab.id) }
+                                      isHighlighted: index == preview) { select(tab.id) }
                     .accessibilityHidden(!isExpanded)
                     .disabled(!isExpanded)
                     .scaleEffect(max(0.001, 1 - (1 - frame.labelScale) * sqrt(order)))
@@ -240,11 +273,65 @@ struct LuckTabBar<Selection: Hashable>: View {
         }
         .padding(4)
         .frame(width: width, height: expandedHeight)
+        .background(alignment: .topLeading) {
+            Capsule().fill(.background)
+                .frame(width: cellWidth, height: expandedHeight - 8)
+                .shadow(color: .black.opacity(0.1), radius: 4)
+                .scaleEffect(max(0.001, 1 - (1 - frame.labelScale) * sqrt(position + 1)))
+                .offset(x: direction * frame.labelOffset * pow(position + 1, frame.labelExponent))
+                .blur(radius: reduceMotion ? 0 : max(0, 1 - frame.labelScale) * 10)
+                .offset(x: direction * (4 + position * cellWidth), y: 4)
+                .animation(dragLocation == nil ? selectionAnimation : nil, value: dragLocation == nil)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
         .offset(x: direction * ((buttonSize + 8) * (1 - frame.expansion) + frame.nudge))
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { tabRowFrame = $0 }
         .animation(reduceMotion || behavior == .compactAsDefault || searchFocused.wrappedValue ? nil :
             .spring(response: 0.38, dampingFraction: 0.8).speed(speed), value: selection)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Tabs")
+    }
+
+    private func dragPosition(at point: CGPoint) -> CGFloat {
+        let cellWidth = max(1, (tabRowFrame.width - 8) / CGFloat(visibleTabs.count))
+        let x = layoutDirection == .rightToLeft ? tabRowFrame.maxX - point.x : point.x - tabRowFrame.minX
+        return min(CGFloat(visibleTabs.count - 1), max(0, (x - 4) / cellWidth - 0.5))
+    }
+
+    private func canBeginDrag(at point: CGPoint, bounds: CGRect) -> Bool {
+        guard scenePhase == .active, bounds.contains(point) else { return false }
+        if !isExpanded {
+            let size = buttonSize * motion.frame.buttonScale
+            let x = motion.frame.buttonOffset * motion.frame.buttonScale + (buttonSize - size) / 2
+            let circle = CGRect(x: bounds.minX + physicalX(x, width: size, container: bounds.width),
+                                y: bounds.minY + (compactHeight - size) / 2, width: size, height: size)
+            return circle.contains(point)
+        }
+        // NOTE: At accessibility sizes, unselected tabs remain a scroll surface.
+        return !dynamicTypeSize.isAccessibilitySize ||
+            visibleTabs[Int(dragPosition(at: point).rounded())].id == selection
+    }
+
+    private var selectionAnimation: Animation? {
+        reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.8).speed(speed)
+    }
+
+    private func endDrag(at point: CGPoint?) {
+        guard dragLocation != nil else { return }
+        // NOTE: Dismissing the search keyboard moves the strip away from the original finger height.
+        let releaseBounds = tabRowFrame.union(dragOriginFrame).insetBy(dx: -32, dy: -44)
+        guard let point, releaseBounds.contains(point) else {
+            cancelDrag()
+            return
+        }
+        let id = visibleTabs[Int(dragPosition(at: point).rounded())].id
+        withAnimation(selectionAnimation) { dragLocation = nil }
+        select(id)
+    }
+
+    private func cancelDrag() {
+        withAnimation(selectionAnimation) { dragLocation = nil }
     }
 
     private var spring: Spring { Spring(response: 0.6 / speed, dampingRatio: 0.8) }
@@ -318,6 +405,65 @@ struct LuckTabBar<Selection: Hashable>: View {
         }
         KeyframeTrack(\.labelExponent) {
             SpringKeyframe(isExpanded ? 2.05 : 2.3, spring: spring, startVelocity: motion.velocity(\.labelExponent))
+        }
+    }
+}
+
+private struct LuckTabDragGesture: UIGestureRecognizerRepresentable {
+    var canBegin: (CGPoint) -> Bool
+    var changed: (CGPoint, Bool) -> Void
+    var ended: (CGPoint?) -> Void
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
+        Coordinator(converter: converter, canBegin: canBegin)
+    }
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let recognizer = UIPanGestureRecognizer()
+        recognizer.maximumNumberOfTouches = 1
+        recognizer.delegate = context.coordinator
+        return recognizer
+    }
+
+    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        context.coordinator.canBegin = canBegin
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        switch recognizer.state {
+        case .began, .changed: changed(context.converter.location(in: .global), recognizer.state == .began)
+        case .ended: ended(context.converter.location(in: .global))
+        case .cancelled, .failed: ended(nil)
+        default: break
+        }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        let converter: CoordinateSpaceConverter
+        var canBegin: (CGPoint) -> Bool
+        private var startLocation: CGPoint = .zero
+
+        init(converter: CoordinateSpaceConverter, canBegin: @escaping (CGPoint) -> Bool) {
+            self.converter = converter
+            self.canBegin = canBegin
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            // NOTE: Pan translation can still be zero at recognition on iOS 18.
+            let velocity = converter.velocity(in: .global) ?? .zero
+            return abs(velocity.x) > abs(velocity.y) && canBegin(startLocation)
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            startLocation = converter.convert(globalPoint: touch.location(in: nil), to: .global)
+            return true
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                               shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            // NOTE: The selected cell scrubs; rejected origins let the accessibility row scroll.
+            guard let scrollView = otherGestureRecognizer.view as? UIScrollView else { return false }
+            return otherGestureRecognizer === scrollView.panGestureRecognizer
         }
     }
 }

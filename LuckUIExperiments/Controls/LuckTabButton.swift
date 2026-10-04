@@ -3,7 +3,7 @@ import SwiftUI
 struct LuckTabViewStripButton<ID: Hashable>: View {
     let tab: LuckTab<ID>
     let isSelected: Bool
-    let namespace: Namespace.ID
+    let isHighlighted: Bool
     let action: () -> Void
     @Environment(\.layoutDirection) private var layoutDirection
 
@@ -34,14 +34,7 @@ struct LuckTabViewStripButton<ID: Hashable>: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-        .background {
-            if isSelected {
-                Capsule().fill(.background)
-                    .matchedGeometryEffect(id: "selection", in: namespace)
-                    .shadow(color: .black.opacity(0.1), radius: 4)
-            }
-        }
+        .foregroundStyle(isHighlighted ? Color.accentColor : Color.secondary)
         .accessibilityLabel(Text(tab.title))
         .accessibilityValue(Text(verbatim: tab.badge ?? ""))
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])

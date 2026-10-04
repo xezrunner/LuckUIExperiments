@@ -4,17 +4,13 @@ import subprocess
 
 # NOTE: Exercise the actual SwiftUI tracks on macOS without an iOS app host or a second module.
 source = Path('LuckUIExperiments/Controls/LuckTabBar.swift').read_text()
-# NOTE: Timeline sampling cannot catch the live animator resetting when its initial value changes.
-initial_value = re.search(r'KeyframeAnimator\(initialValue:\s*(\w+)\s*,', source)
-assert initial_value, 'The live animator must receive a stable initial frame, not the changing target'
-initial_name = re.escape(initial_value.group(1))
-assert re.search(r'@State private var ' + initial_name + r': LuckTabBarFrame', source), \
-    'Capture the initial frame once for the lifetime of the bar'
-assert re.search(r'_' + initial_name + r'\s*=\s*State\(initialValue: LuckTabBarFrame\(expanded: isExpanded\)\)', source), \
-    'Preserve the caller-requested initial presentation without animating an entrance'
-tracks = source[source.index('    @KeyframesBuilder'):source.index('\n}\n\nprivate struct LuckTabBarFrame')]
+# NOTE: Live clock ownership is covered by UI tests; this harness samples tracks with zero incoming velocity.
+tracks_start = source.index('    @KeyframesBuilder')
+tracks = source[tracks_start:source.index('\n}\n', tracks_start)]
 tracks = tracks.replace('private func tracks(from value:', 'func tracks(expanded isExpanded: Bool, from value:')
-frame = source[source.index('private struct LuckTabBarFrame'):].replace('private struct', 'struct')
+tracks = re.sub(r'motion\.velocity\(\\\.\w+\)', '0', tracks)
+frame_start = source.index('private struct LuckTabBarFrame')
+frame = source[frame_start:source.index('\n}\n', frame_start) + 2].replace('private struct', 'struct')
 label_offset = re.search(r'\.offset\(x: (direction \* frame\.labelOffset[^\n]+)\)', source).group(1)
 label_scale = re.search(r'\.scaleEffect\((max\(0\.001, [^\n]+)\)', source).group(1)
 strip_offset = re.search(r'\.offset\(x: (direction \* \(\(buttonSize[^\n]+)\)', source).group(1)
